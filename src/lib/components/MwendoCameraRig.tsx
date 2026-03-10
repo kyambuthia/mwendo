@@ -109,6 +109,7 @@ export function MwendoCameraRig({
       if (desiredDistance > 0.001) {
         rayDirection.normalize();
         occlusionRaycaster.set(focus, rayDirection);
+        occlusionRaycaster.camera = camera;
         occlusionRaycaster.far = desiredDistance;
 
         const occluder = occlusionRaycaster
