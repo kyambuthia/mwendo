@@ -113,7 +113,7 @@ export function MwendoPlayer({
     };
     const { cameraYaw, playerFacing } = storeApi.getState();
 
-    forward.set(Math.sin(cameraYaw), 0, Math.cos(cameraYaw));
+    forward.set(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
     right.set(forward.z, 0, -forward.x);
     movement.set(0, 0, 0);
 
