@@ -1,10 +1,14 @@
 import { Canvas } from "@react-three/fiber";
-import { Physics } from "@react-three/rapier";
-import { Suspense } from "react";
+import { Physics, useRapier } from "@react-three/rapier";
+import { Suspense, useEffect, useRef } from "react";
 import { FlatArena } from "./components/FlatArena";
 import { KeyRibbon } from "./components/KeyRibbon";
 import { Lights } from "./components/Lights";
 import { useDemoTouchInput } from "./components/useDemoTouchInput";
+import {
+  DEMO_PHYSICS_STEP,
+  useDemoPhysicsDebugControls,
+} from "./components/useDemoPhysicsDebugControls";
 import {
   MwendoCameraRig,
   MwendoPlayer,
@@ -12,8 +16,46 @@ import {
   MwendoRagdollDummy,
 } from "./lib";
 
+function DemoPhysicsStepper({
+  paused,
+  stepRequest,
+  timeScale,
+  onStep,
+}: {
+  paused: boolean;
+  stepRequest: number;
+  timeScale: number;
+  onStep: () => void;
+}) {
+  const { step } = useRapier();
+  const handledRequest = useRef(0);
+
+  useEffect(() => {
+    if (!paused) {
+      handledRequest.current = stepRequest;
+      return;
+    }
+
+    if (stepRequest === handledRequest.current) {
+      return;
+    }
+
+    const pendingSteps = stepRequest - handledRequest.current;
+
+    handledRequest.current = stepRequest;
+
+    for (let index = 0; index < pendingSteps; index += 1) {
+      step(DEMO_PHYSICS_STEP * timeScale);
+      onStep();
+    }
+  }, [onStep, paused, step, stepRequest, timeScale]);
+
+  return null;
+}
+
 function DemoScene() {
   const touchInputRef = useDemoTouchInput();
+  const physicsDebug = useDemoPhysicsDebugControls();
 
   return (
     <>
@@ -27,14 +69,30 @@ function DemoScene() {
         <fog attach="fog" args={["#c9dcff", 30, 120]} />
         <Suspense fallback={null}>
           <Lights />
-          <Physics gravity={[0, -9.81, 0]}>
+          <Physics
+            gravity={[0, -9.81, 0]}
+            paused={physicsDebug.paused}
+            timeStep={DEMO_PHYSICS_STEP * physicsDebug.timeScale}
+          >
+            <DemoPhysicsStepper
+              onStep={physicsDebug.acknowledgeStep}
+              paused={physicsDebug.paused}
+              stepRequest={physicsDebug.stepRequest}
+              timeScale={physicsDebug.timeScale}
+            />
             <FlatArena />
             <MwendoPlayer
               controls="keyboard"
               inputRef={touchInputRef}
               position={[0, 2.5, 6]}
             />
-            <MwendoRagdollDummy position={[-4, 5.5, -6]} />
+            <MwendoRagdollDummy
+              debug
+              manualStepCount={physicsDebug.manualStepCount}
+              paused={physicsDebug.paused}
+              position={[-4, 5.5, -6]}
+              timeScale={physicsDebug.timeScale}
+            />
           </Physics>
           <MwendoCameraRig />
         </Suspense>
