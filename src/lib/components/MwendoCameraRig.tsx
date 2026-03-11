@@ -94,9 +94,14 @@ export function MwendoCameraRig({
 
   useFrame((_, delta) => {
     const state = storeApi.getState();
-    const [x, y, z] = state.playerPosition;
+    const customFocus = state.playerFocusPosition;
 
-    focus.set(x, y + focusHeight, z);
+    if (customFocus) {
+      focus.set(customFocus[0], customFocus[1], customFocus[2]);
+    } else {
+      const [x, y, z] = state.playerPosition;
+      focus.set(x, y + focusHeight, z);
+    }
     rotation.set(state.cameraPitch, state.cameraYaw, 0);
     desiredPosition.copy(offset).applyEuler(rotation).add(focus);
 

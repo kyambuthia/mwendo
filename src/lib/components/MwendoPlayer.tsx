@@ -180,6 +180,7 @@ export function MwendoPlayer({
       facing: storeApi.getState().playerFacing,
       movementMode: "idle",
       grounded: false,
+      supportState: "none",
       velocity: [0, 0, 0],
     };
 
@@ -416,6 +417,7 @@ export function MwendoPlayer({
       facing,
       movementMode: nextMovementMode,
       grounded: groundedAfterMove,
+      supportState: groundedAfterMove ? "double" : "none",
     };
     const previousSnapshot = lastSnapshotRef.current;
 

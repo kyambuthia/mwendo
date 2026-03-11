@@ -106,6 +106,7 @@ export function Scene() {
 - `useMwendoStoreApi`
 - `useMwendoKeyboardInput`
 - `useMwendoInputController`
+- `MwendoActiveRagdollPlayer` experimental
 - `MwendoPlayer`
 - `MwendoCameraRig`
 - `MwendoRagdollDummy`
@@ -120,6 +121,7 @@ Useful exported types:
 - `MwendoInputState`
 - `MwendoMovementMode`
 - `MwendoPlayerSnapshot`
+- `MwendoSupportState`
 - `MwendoVec3`
 
 ## Key component props
@@ -131,6 +133,15 @@ Useful exported types:
 - tunables for `walkSpeed`, `runSpeed`, `crouchSpeed`, `jumpVelocity`, `acceleration`, `deceleration`, and `airControl`
 - `onSnapshotChange`, `onMovementModeChange`, `onGroundedChange`, `onJump`, and `onLand`
 - `debug` for the in-world player debug overlay
+- emitted snapshots currently report `supportState` as a simple `"double"` or `"none"` fallback for the capsule baseline
+
+`MwendoActiveRagdollPlayer` supports:
+
+- the same input and lifecycle callback shape as `MwendoPlayer`
+- experimental tunables for `jumpImpulse`, `uprightTorque`, `turnTorque`, and `balanceDamping`
+- experimental camera-target tuning with `cameraFocusSmoothing`, `cameraFocusHeight`, and `cameraFocusLead`
+- `debug` to view the articulated rig through the ragdoll debug overlay
+- emitted snapshots report articulated foot support as `"none"`, `"left"`, `"right"`, or `"double"`
 
 `MwendoCameraRig` supports:
 
@@ -160,6 +171,10 @@ Useful exported types:
 - `npm run build:demo`: build the demo into `demo-dist`
 - `npm run build`: typecheck, test, and build both library and demo
 - `npm run preview:lan`: preview the demo build on your LAN
+
+Demo tip:
+
+- add `?player=ragdoll` to the dev URL to load the experimental active-ragdoll player instead of the capsule baseline
 
 ## Design direction
 

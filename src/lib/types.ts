@@ -6,6 +6,8 @@ export type MwendoMovementMode =
   | "jump"
   | "fall";
 
+export type MwendoSupportState = "none" | "left" | "right" | "double";
+
 export type MwendoVec3 = [number, number, number];
 
 export type MwendoInputState = {
@@ -20,9 +22,11 @@ export type MwendoInputState = {
 
 export type MwendoPlayerSnapshot = {
   position: MwendoVec3;
+  focusPosition?: MwendoVec3;
   facing: number;
   movementMode: MwendoMovementMode;
   grounded: boolean;
+  supportState: MwendoSupportState;
   velocity: MwendoVec3;
 };
 

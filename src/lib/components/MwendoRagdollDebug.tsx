@@ -28,7 +28,7 @@ type DebugShape =
 export type MwendoRagdollBodyDescriptor = {
   key: string;
   label: string;
-  ref: RefObject<RapierRigidBody>;
+  ref: RefObject<RapierRigidBody | null>;
   mass: number;
   color: string;
   shape: DebugShape;
@@ -37,8 +37,8 @@ export type MwendoRagdollBodyDescriptor = {
 export type MwendoRagdollJointDescriptor = {
   key: string;
   kind: "spherical" | "revolute";
-  bodyA: RefObject<RapierRigidBody>;
-  bodyB: RefObject<RapierRigidBody>;
+  bodyA: RefObject<RapierRigidBody | null>;
+  bodyB: RefObject<RapierRigidBody | null>;
   anchorA: MwendoVec3;
   anchorB: MwendoVec3;
   axis?: MwendoVec3;

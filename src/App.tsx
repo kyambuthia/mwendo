@@ -10,11 +10,17 @@ import {
   useDemoPhysicsDebugControls,
 } from "./components/useDemoPhysicsDebugControls";
 import {
+  MwendoActiveRagdollPlayer,
   MwendoCameraRig,
   MwendoPlayer,
   MwendoProvider,
   MwendoRagdollDummy,
 } from "./lib";
+
+const DEMO_PLAYER_MODE =
+  new URLSearchParams(window.location.search).get("player") === "ragdoll"
+    ? "ragdoll"
+    : "capsule";
 
 function DemoPhysicsStepper({
   paused,
@@ -81,12 +87,21 @@ function DemoScene() {
               timeScale={physicsDebug.timeScale}
             />
             <FlatArena />
-            <MwendoPlayer
-              controls="keyboard"
-              debug
-              inputRef={touchInputRef}
-              position={[0, 2.5, 6]}
-            />
+            {DEMO_PLAYER_MODE === "ragdoll" ? (
+              <MwendoActiveRagdollPlayer
+                controls="keyboard"
+                debug
+                inputRef={touchInputRef}
+                position={[0, 2.5, 6]}
+              />
+            ) : (
+              <MwendoPlayer
+                controls="keyboard"
+                debug
+                inputRef={touchInputRef}
+                position={[0, 2.5, 6]}
+              />
+            )}
             <MwendoRagdollDummy
               debug
               manualStepCount={physicsDebug.manualStepCount}
