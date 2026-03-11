@@ -17,11 +17,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kyambuthia/mwendo.git"
+    "url": "git+https://github.com/kyambuthia/physx-ragdoll-ctrlr.git"
   },
-  "homepage": "https://github.com/kyambuthia/mwendo#readme",
+  "homepage": "https://github.com/kyambuthia/physx-ragdoll-ctrlr#readme",
   "bugs": {
-    "url": "https://github.com/kyambuthia/mwendo/issues"
+    "url": "https://github.com/kyambuthia/physx-ragdoll-ctrlr/issues"
   },
   "keywords": [
     "react-three-fiber",
