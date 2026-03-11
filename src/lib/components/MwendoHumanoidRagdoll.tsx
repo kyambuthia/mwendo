@@ -6,8 +6,10 @@ import {
   type RapierRigidBody,
 } from "@react-three/rapier";
 import {
+  useEffect,
   useMemo,
   type ComponentProps,
+  type MutableRefObject,
   type RefObject,
 } from "react";
 import type { MwendoVec3 } from "../types";
@@ -25,7 +27,9 @@ import {
   type MwendoHumanoidBodyDefinition,
   type MwendoHumanoidBodyKey,
   type MwendoHumanoidBodyRefs,
+  type MwendoHumanoidRevoluteJointKey,
   type MwendoHumanoidRevoluteJointDefinition,
+  type MwendoHumanoidRevoluteJointRefs,
   type MwendoHumanoidSphericalJointDefinition,
 } from "./MwendoHumanoidData";
 
@@ -44,6 +48,7 @@ export type MwendoHumanoidRagdollProps = {
   manualStepCount?: number;
   ignoreCameraOcclusion?: boolean;
   bodyRefs?: MwendoHumanoidBodyRefs;
+  revoluteJointRefs?: MwendoHumanoidRevoluteJointRefs;
   sharedBodyProps?: MwendoHumanoidBodyOverrides;
   bodyProps?: Partial<Record<MwendoHumanoidBodyKey, MwendoHumanoidBodyOverrides>>;
 };
@@ -140,11 +145,13 @@ function HumanoidSphericalJoint({
 function HumanoidRevoluteJoint({
   bodyRefs,
   definition,
+  jointRef,
 }: {
   bodyRefs: MwendoHumanoidBodyRefs;
   definition: MwendoHumanoidRevoluteJointDefinition;
+  jointRef?: MutableRefObject<ReturnType<typeof useRevoluteJoint>["current"] | null>;
 }) {
-  useRevoluteJoint(
+  const internalJointRef = useRevoluteJoint(
     bodyRefs[definition.bodyA] as RefObject<RapierRigidBody>,
     bodyRefs[definition.bodyB] as RefObject<RapierRigidBody>,
     [
@@ -154,6 +161,18 @@ function HumanoidRevoluteJoint({
       definition.limits,
     ],
   );
+
+  useEffect(() => {
+    if (!jointRef) {
+      return;
+    }
+
+    jointRef.current = internalJointRef.current ?? null;
+
+    return () => {
+      jointRef.current = null;
+    };
+  }, [internalJointRef, jointRef]);
 
   return null;
 }
@@ -166,6 +185,7 @@ export function MwendoHumanoidRagdoll({
   manualStepCount = 0,
   ignoreCameraOcclusion = false,
   bodyRefs: externalBodyRefs,
+  revoluteJointRefs,
   sharedBodyProps,
   bodyProps,
 }: MwendoHumanoidRagdollProps) {
@@ -224,6 +244,7 @@ export function MwendoHumanoidRagdoll({
           key={definition.key}
           bodyRefs={bodyRefs}
           definition={definition}
+          jointRef={revoluteJointRefs?.[definition.key]}
         />
       ))}
 

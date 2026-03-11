@@ -1,4 +1,5 @@
-import { createRef, type RefObject } from "react";
+import type { RevoluteImpulseJoint } from "@dimforge/rapier3d-compat";
+import { createRef, type MutableRefObject, type RefObject } from "react";
 import type { RapierRigidBody } from "@react-three/rapier";
 import type { MwendoVec3 } from "../types";
 
@@ -42,13 +43,7 @@ export type MwendoHumanoidBodyDefinition = {
 };
 
 export type MwendoHumanoidSphericalJointDefinition = {
-  key:
-    | "spine"
-    | "neck"
-    | "shoulderLeft"
-    | "shoulderRight"
-    | "hipLeft"
-    | "hipRight";
+  key: MwendoHumanoidSphericalJointKey;
   kind: "spherical";
   bodyA: MwendoHumanoidBodyKey;
   bodyB: MwendoHumanoidBodyKey;
@@ -56,16 +51,26 @@ export type MwendoHumanoidSphericalJointDefinition = {
   anchorB: MwendoVec3;
 };
 
+export type MwendoHumanoidSphericalJointKey =
+  | "spine"
+  | "neck"
+  | "shoulderLeft"
+  | "shoulderRight"
+  | "hipLeft"
+  | "hipRight";
+
+export type MwendoHumanoidRevoluteJointKey =
+  | "elbowLeft"
+  | "wristLeft"
+  | "elbowRight"
+  | "wristRight"
+  | "kneeLeft"
+  | "ankleLeft"
+  | "kneeRight"
+  | "ankleRight";
+
 export type MwendoHumanoidRevoluteJointDefinition = {
-  key:
-    | "elbowLeft"
-    | "wristLeft"
-    | "elbowRight"
-    | "wristRight"
-    | "kneeLeft"
-    | "ankleLeft"
-    | "kneeRight"
-    | "ankleRight";
+  key: MwendoHumanoidRevoluteJointKey;
   kind: "revolute";
   bodyA: MwendoHumanoidBodyKey;
   bodyB: MwendoHumanoidBodyKey;
@@ -82,6 +87,11 @@ export type MwendoHumanoidJointDefinition =
 export type MwendoHumanoidBodyRefs = Record<
   MwendoHumanoidBodyKey,
   RefObject<RapierRigidBody | null>
+>;
+
+export type MwendoHumanoidRevoluteJointRefs = Record<
+  MwendoHumanoidRevoluteJointKey,
+  MutableRefObject<RevoluteImpulseJoint | null>
 >;
 
 export const MWENDO_HUMANOID_BODY_DEFINITIONS: MwendoHumanoidBodyDefinition[] = [
@@ -136,7 +146,7 @@ export const MWENDO_HUMANOID_BODY_DEFINITIONS: MwendoHumanoidBodyDefinition[] = 
   {
     key: "handLeft",
     label: "Hand L",
-    position: [-0.44, -0.12, 0.02],
+    position: [-0.44, -0.12, 0],
     mass: 0.3,
     color: "#f1d7b8",
     collider: "cuboid",
@@ -166,7 +176,7 @@ export const MWENDO_HUMANOID_BODY_DEFINITIONS: MwendoHumanoidBodyDefinition[] = 
   {
     key: "handRight",
     label: "Hand R",
-    position: [0.44, -0.12, 0.02],
+    position: [0.44, -0.12, 0],
     mass: 0.3,
     color: "#f1d7b8",
     collider: "cuboid",
@@ -185,7 +195,7 @@ export const MWENDO_HUMANOID_BODY_DEFINITIONS: MwendoHumanoidBodyDefinition[] = 
   {
     key: "lowerLegLeft",
     label: "Lower Leg L",
-    position: [-0.18, -1.24, 0.02],
+    position: [-0.18, -1.24, 0],
     mass: 1.2,
     color: "#162434",
     collider: "cuboid",
@@ -194,7 +204,7 @@ export const MWENDO_HUMANOID_BODY_DEFINITIONS: MwendoHumanoidBodyDefinition[] = 
   {
     key: "footLeft",
     label: "Foot L",
-    position: [-0.18, -1.74, 0.16],
+    position: [-0.18, -1.66, 0.14],
     mass: 0.5,
     color: "#101826",
     collider: "cuboid",
@@ -212,7 +222,7 @@ export const MWENDO_HUMANOID_BODY_DEFINITIONS: MwendoHumanoidBodyDefinition[] = 
   {
     key: "lowerLegRight",
     label: "Lower Leg R",
-    position: [0.18, -1.24, 0.02],
+    position: [0.18, -1.24, 0],
     mass: 1.2,
     color: "#162434",
     collider: "cuboid",
@@ -221,7 +231,7 @@ export const MWENDO_HUMANOID_BODY_DEFINITIONS: MwendoHumanoidBodyDefinition[] = 
   {
     key: "footRight",
     label: "Foot R",
-    position: [0.18, -1.74, 0.16],
+    position: [0.18, -1.66, 0.14],
     mass: 0.5,
     color: "#101826",
     collider: "cuboid",
@@ -339,7 +349,7 @@ export const MWENDO_HUMANOID_REVOLUTE_JOINT_DEFINITIONS: MwendoHumanoidRevoluteJ
       bodyA: "lowerLegLeft",
       bodyB: "footLeft",
       anchorA: [0, -0.34, 0],
-      anchorB: [0, 0.06, -0.14],
+      anchorB: [0, 0.08, -0.14],
       axis: [1, 0, 0],
       limits: [-0.55, 0.45],
     },
@@ -359,7 +369,7 @@ export const MWENDO_HUMANOID_REVOLUTE_JOINT_DEFINITIONS: MwendoHumanoidRevoluteJ
       bodyA: "lowerLegRight",
       bodyB: "footRight",
       anchorA: [0, -0.34, 0],
-      anchorB: [0, 0.06, -0.14],
+      anchorB: [0, 0.08, -0.14],
       axis: [1, 0, 0],
       limits: [-0.55, 0.45],
     },
@@ -387,5 +397,18 @@ export function createMwendoHumanoidBodyRefs(): MwendoHumanoidBodyRefs {
     upperLegRight: createRef<RapierRigidBody>(),
     lowerLegRight: createRef<RapierRigidBody>(),
     footRight: createRef<RapierRigidBody>(),
+  };
+}
+
+export function createMwendoHumanoidRevoluteJointRefs(): MwendoHumanoidRevoluteJointRefs {
+  return {
+    elbowLeft: { current: null },
+    wristLeft: { current: null },
+    elbowRight: { current: null },
+    wristRight: { current: null },
+    kneeLeft: { current: null },
+    ankleLeft: { current: null },
+    kneeRight: { current: null },
+    ankleRight: { current: null },
   };
 }

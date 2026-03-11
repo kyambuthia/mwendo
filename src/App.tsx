@@ -18,9 +18,9 @@ import {
 } from "./lib";
 
 const DEMO_PLAYER_MODE =
-  new URLSearchParams(window.location.search).get("player") === "ragdoll"
-    ? "ragdoll"
-    : "capsule";
+  new URLSearchParams(window.location.search).get("player") === "capsule"
+    ? "capsule"
+    : "ragdoll";
 
 function DemoPhysicsStepper({
   paused,
@@ -90,7 +90,6 @@ function DemoScene() {
             {DEMO_PLAYER_MODE === "ragdoll" ? (
               <MwendoActiveRagdollPlayer
                 controls="keyboard"
-                debug
                 inputRef={touchInputRef}
                 position={[0, 2.5, 6]}
               />
@@ -103,7 +102,6 @@ function DemoScene() {
               />
             )}
             <MwendoRagdollDummy
-              debug
               manualStepCount={physicsDebug.manualStepCount}
               paused={physicsDebug.paused}
               position={[-4, 5.5, -6]}

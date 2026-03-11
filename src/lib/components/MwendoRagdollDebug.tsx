@@ -123,6 +123,7 @@ const EMPTY_DEBUG_SNAPSHOT: RagdollDebugSnapshot = {
 const tempVector = new Vector3();
 const tempVectorB = new Vector3();
 const tempQuaternion = new Quaternion();
+type RapierCollider = ReturnType<RapierRigidBody["collider"]>;
 
 function toTuple3(value: { x: number; y: number; z: number }): MwendoVec3 {
   return [value.x, value.y, value.z];
@@ -134,6 +135,18 @@ function toTuple4(value: { x: number; y: number; z: number; w: number }) {
 
 function localize(point: { x: number; y: number; z: number }, origin: MwendoVec3): MwendoVec3 {
   return [point.x - origin[0], point.y - origin[1], point.z - origin[2]];
+}
+
+function isValidRigidBody(
+  body: RapierRigidBody | null | undefined,
+): body is RapierRigidBody {
+  return !!body && body.isValid();
+}
+
+function isValidCollider(
+  collider: RapierCollider | null | undefined,
+): collider is RapierCollider {
+  return !!collider && collider.isValid();
 }
 
 function worldPointFromLocal(
@@ -558,14 +571,13 @@ function buildSnapshot(
 ) {
   const bodySnapshots: BodySnapshot[] = [];
   const ragdollBodyHandles = new Set<number>();
-  const ragdollColliders: Array<{ bodyKey: string; collider: ReturnType<RapierRigidBody["collider"]> }> =
-    [];
+  const ragdollColliders: Array<{ bodyKey: string; collider: RapierCollider }> = [];
   let totalMass = 0;
 
   for (const descriptor of bodies) {
     const body = descriptor.ref.current;
 
-    if (!body) {
+    if (!isValidRigidBody(body)) {
       continue;
     }
 
@@ -584,7 +596,7 @@ function buildSnapshot(
     for (let index = 0; index < body.numColliders(); index += 1) {
       const collider = body.collider(index);
 
-      if (collider) {
+      if (isValidCollider(collider)) {
         ragdollColliders.push({ bodyKey: descriptor.key, collider });
       }
     }
@@ -626,7 +638,7 @@ function buildSnapshot(
     const bodyA = joint.bodyA.current;
     const bodyB = joint.bodyB.current;
 
-    if (!bodyA || !bodyB) {
+    if (!isValidRigidBody(bodyA) || !isValidRigidBody(bodyB)) {
       return [];
     }
 
@@ -651,55 +663,72 @@ function buildSnapshot(
   const visitedPairs = new Set<string>();
 
   for (const ragdollCollider of ragdollColliders) {
+    if (!isValidCollider(ragdollCollider.collider)) {
+      continue;
+    }
+
     for (const colliderState of colliderStates.values()) {
       const otherCollider = colliderState.collider;
 
-      if (!otherCollider || otherCollider.handle === ragdollCollider.collider.handle) {
+      if (
+        !isValidCollider(otherCollider) ||
+        otherCollider.handle === ragdollCollider.collider.handle
+      ) {
         continue;
       }
 
-      const parent = otherCollider.parent();
+      try {
+        const parent = otherCollider.parent();
 
-      if (parent && ragdollBodyHandles.has(parent.handle)) {
-        continue;
-      }
-
-      const pairKey =
-        ragdollCollider.collider.handle < otherCollider.handle
-          ? `${ragdollCollider.collider.handle}:${otherCollider.handle}`
-          : `${otherCollider.handle}:${ragdollCollider.collider.handle}`;
-
-      if (visitedPairs.has(pairKey)) {
-        continue;
-      }
-
-      visitedPairs.add(pairKey);
-
-      world.contactPair(ragdollCollider.collider, otherCollider, (manifold, flipped) => {
-        const normal = manifold.normal();
-        const orientation = flipped ? -1 : 1;
-
-        for (let index = 0; index < manifold.numSolverContacts(); index += 1) {
-          const point = manifold.solverContactPoint(index);
-          const localPoint = localize(point, origin);
-          const normalEnd: MwendoVec3 = [
-            localPoint[0] + normal.x * 0.42 * orientation,
-            localPoint[1] + normal.y * 0.42 * orientation,
-            localPoint[2] + normal.z * 0.42 * orientation,
-          ];
-          const intensity =
-            manifold.numContacts() > 0
-              ? Math.min(1, manifold.contactImpulse(Math.min(index, manifold.numContacts() - 1)) / 2.8)
-              : 0.15;
-
-          contacts.push({
-            key: `${pairKey}:${index}:${ragdollCollider.bodyKey}`,
-            point: localPoint,
-            normalEnd,
-            intensity,
-          });
+        if (parent?.isValid() && ragdollBodyHandles.has(parent.handle)) {
+          continue;
         }
-      });
+
+        const pairKey =
+          ragdollCollider.collider.handle < otherCollider.handle
+            ? `${ragdollCollider.collider.handle}:${otherCollider.handle}`
+            : `${otherCollider.handle}:${ragdollCollider.collider.handle}`;
+
+        if (visitedPairs.has(pairKey)) {
+          continue;
+        }
+
+        visitedPairs.add(pairKey);
+
+        world.contactPair(ragdollCollider.collider, otherCollider, (manifold, flipped) => {
+          const normal = manifold.normal();
+          const orientation = flipped ? -1 : 1;
+
+          for (let index = 0; index < manifold.numSolverContacts(); index += 1) {
+            const point = manifold.solverContactPoint(index);
+            const localPoint = localize(point, origin);
+            const normalEnd: MwendoVec3 = [
+              localPoint[0] + normal.x * 0.42 * orientation,
+              localPoint[1] + normal.y * 0.42 * orientation,
+              localPoint[2] + normal.z * 0.42 * orientation,
+            ];
+            const intensity =
+              manifold.numContacts() > 0
+                ? Math.min(
+                    1,
+                    manifold.contactImpulse(
+                      Math.min(index, manifold.numContacts() - 1),
+                    ) / 2.8,
+                  )
+                : 0.15;
+
+            contacts.push({
+              key: `${pairKey}:${index}:${ragdollCollider.bodyKey}`,
+              point: localPoint,
+              normalEnd,
+              intensity,
+            });
+          }
+        });
+      } catch {
+        // Debug sampling is best-effort; skip any collider pair that went stale between frames.
+        continue;
+      }
     }
   }
 

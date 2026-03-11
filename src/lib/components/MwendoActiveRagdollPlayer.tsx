@@ -9,6 +9,7 @@ import {
   useRef,
   type RefObject,
 } from "react";
+import type { RevoluteImpulseJoint } from "@dimforge/rapier3d-compat";
 import { Euler, MathUtils, Quaternion, Vector3 } from "three";
 import { useMwendoStore, useMwendoStoreApi } from "../MwendoProvider";
 import { useMwendoKeyboardInput } from "../useMwendoKeyboardInput";
@@ -23,7 +24,9 @@ import {
 } from "../types";
 import {
   createMwendoHumanoidBodyRefs,
+  createMwendoHumanoidRevoluteJointRefs,
   type MwendoHumanoidBodyKey,
+  type MwendoHumanoidRevoluteJointRefs,
 } from "./MwendoHumanoidData";
 import { MwendoHumanoidRagdoll } from "./MwendoHumanoidRagdoll";
 
@@ -38,7 +41,9 @@ const rawFocus = new Vector3();
 const smoothedFocus = new Vector3();
 const supportCenter = new Vector3();
 const supportCorrection = new Vector3();
+const supportForward = new Vector3();
 const facingRight = new Vector3();
+const facingForward = new Vector3();
 const tempFootPosition = new Vector3();
 
 type SupportSide = "left" | "right";
@@ -97,6 +102,19 @@ function deriveSupportState(
   return "none";
 }
 
+function driveJointToPosition(
+  joint: RevoluteImpulseJoint | null,
+  targetPosition: number,
+  stiffness: number,
+  damping: number,
+) {
+  if (!joint?.isValid()) {
+    return;
+  }
+
+  joint.configureMotorPosition(targetPosition, stiffness, damping);
+}
+
 export function MwendoActiveRagdollPlayer({
   position = [0, 2.5, 6],
   controls = "keyboard",
@@ -105,12 +123,12 @@ export function MwendoActiveRagdollPlayer({
   walkSpeed = 2.7,
   runSpeed = 4.7,
   crouchSpeed = 1.7,
-  acceleration = 8.5,
-  airControl = 0.32,
+  acceleration = 6.2,
+  airControl = 0.26,
   jumpImpulse = 5.2,
-  uprightTorque = 22,
-  turnTorque = 9,
-  balanceDamping = 4.2,
+  uprightTorque = 14,
+  turnTorque = 5.6,
+  balanceDamping = 6.8,
   cameraFocusSmoothing = 12,
   cameraFocusHeight = 0.28,
   cameraFocusLead = 0.16,
@@ -124,6 +142,7 @@ export function MwendoActiveRagdollPlayer({
   const storeApi = useMwendoStoreApi();
   const setPlayerSnapshot = useMwendoStore((state) => state.setPlayerSnapshot);
   const bodyRefs = useMemo(() => createMwendoHumanoidBodyRefs(), []);
+  const jointRefs = useMemo(() => createMwendoHumanoidRevoluteJointRefs(), []);
   const keyboardInputRef = useMwendoKeyboardInput(controls === "keyboard");
   const idleInputRef = useRef<MwendoInputState | null>({ ...DEFAULT_MWENDO_INPUT });
   const groundedRef = useRef(false);
@@ -189,7 +208,7 @@ export function MwendoActiveRagdollPlayer({
   const createGroundContactEnterHandler =
     (side: SupportSide) => (payload: CollisionEnterPayload) => {
       const normal = payload.manifold.normal();
-      const supportY = payload.flipped ? normal.y : -normal.y;
+      const supportY = payload.flipped ? -normal.y : normal.y;
 
       if (supportY < 0.35) {
         return;
@@ -345,6 +364,8 @@ export function MwendoActiveRagdollPlayer({
     const yawError = angleDifference(pelvisEuler.y, targetFacing);
     const horizontalSpeed = Math.hypot(currentVelocity.x, currentVelocity.z);
     const speedRatio = Math.min(1, horizontalSpeed / Math.max(0.001, runSpeed));
+    const crouchAmount = keys.crouch ? 1 : 0;
+    const airborneAmount = grounded ? 0 : 1;
 
     if (grounded && hasMovementInput) {
       gaitPhaseRef.current += delta * MathUtils.lerp(1.6, 5.8, speedRatio);
@@ -352,18 +373,30 @@ export function MwendoActiveRagdollPlayer({
 
     pelvis.applyTorqueImpulse(
       {
-        x:
-          (-pelvisEuler.x * uprightTorque - pelvisAngularVelocity.x * balanceDamping)
-          * pelvisTorqueScale
-          * delta,
-        y:
-          (yawError * turnTorque - pelvisAngularVelocity.y * (balanceDamping * 0.65))
-          * pelvisTorqueScale
-          * delta,
-        z:
-          (-pelvisEuler.z * uprightTorque - pelvisAngularVelocity.z * balanceDamping)
-          * pelvisTorqueScale
-          * delta,
+        x: MathUtils.clamp(
+          (
+            -pelvisEuler.x * uprightTorque
+            - pelvisAngularVelocity.x * balanceDamping
+          ) * pelvisTorqueScale * delta,
+          -0.45,
+          0.45,
+        ),
+        y: MathUtils.clamp(
+          (
+            yawError * turnTorque
+            - pelvisAngularVelocity.y * (balanceDamping * 0.65)
+          ) * pelvisTorqueScale * delta,
+          -0.28,
+          0.28,
+        ),
+        z: MathUtils.clamp(
+          (
+            -pelvisEuler.z * uprightTorque
+            - pelvisAngularVelocity.z * balanceDamping
+          ) * pelvisTorqueScale * delta,
+          -0.45,
+          0.45,
+        ),
       },
       true,
     );
@@ -381,18 +414,30 @@ export function MwendoActiveRagdollPlayer({
 
     chest.applyTorqueImpulse(
       {
-        x:
-          (-chestEuler.x * uprightTorque * 0.92 - chestAngularVelocity.x * balanceDamping)
-          * pelvisTorqueScale
-          * delta,
-        y:
-          (yawError * turnTorque * 0.45 - chestAngularVelocity.y * (balanceDamping * 0.45))
-          * pelvisTorqueScale
-          * delta,
-        z:
-          (-chestEuler.z * uprightTorque * 0.92 - chestAngularVelocity.z * balanceDamping)
-          * pelvisTorqueScale
-          * delta,
+        x: MathUtils.clamp(
+          (
+            -chestEuler.x * uprightTorque * 0.84
+            - chestAngularVelocity.x * balanceDamping
+          ) * pelvisTorqueScale * delta,
+          -0.32,
+          0.32,
+        ),
+        y: MathUtils.clamp(
+          (
+            yawError * turnTorque * 0.35
+            - chestAngularVelocity.y * (balanceDamping * 0.5)
+          ) * pelvisTorqueScale * delta,
+          -0.16,
+          0.16,
+        ),
+        z: MathUtils.clamp(
+          (
+            -chestEuler.z * uprightTorque * 0.84
+            - chestAngularVelocity.z * balanceDamping
+          ) * pelvisTorqueScale * delta,
+          -0.32,
+          0.32,
+        ),
       },
       true,
     );
@@ -463,20 +508,38 @@ export function MwendoActiveRagdollPlayer({
       if (supportPointCount > 0) {
         supportCenter.divideScalar(supportPointCount);
         facingRight.set(Math.cos(facing), 0, -Math.sin(facing));
+        facingForward.set(Math.sin(facing), 0, Math.cos(facing));
 
         const lateralError =
           (supportCenter.x - rootPosition.x) * facingRight.x
           + (supportCenter.z - rootPosition.z) * facingRight.z;
+        const forwardError =
+          (supportCenter.x - rootPosition.x) * facingForward.x
+          + (supportCenter.z - rootPosition.z) * facingForward.z;
         const supportCentering =
           supportStateAfterJump === "double" ? 3.2 : 5.4;
+        const supportForwarding =
+          supportStateAfterJump === "double" ? 2.4 : 4;
+        const desiredPelvisHeight =
+          supportCenter.y + MathUtils.lerp(1.34, 1.08, crouchAmount);
+        const heightError = desiredPelvisHeight - rootPosition.y;
+        const heightImpulse = MathUtils.clamp(
+          (heightError * 9.5 - currentVelocity.y * 1.8) * pelvisMass * delta,
+          -0.12,
+          0.38,
+        );
 
         supportCorrection
           .copy(facingRight)
           .multiplyScalar(lateralError * pelvisMass * supportCentering * delta);
+        supportForward
+          .copy(facingForward)
+          .multiplyScalar(forwardError * pelvisMass * supportForwarding * delta);
+        supportCorrection.add(supportForward);
         pelvis.applyImpulse(
           {
             x: supportCorrection.x,
-            y: 0,
+            y: heightImpulse,
             z: supportCorrection.z,
           },
           true,
@@ -484,7 +547,7 @@ export function MwendoActiveRagdollPlayer({
         chest.applyImpulse(
           {
             x: supportCorrection.x * 0.22,
-            y: 0,
+            y: heightImpulse * 0.52,
             z: supportCorrection.z * 0.22,
           },
           true,
@@ -497,24 +560,114 @@ export function MwendoActiveRagdollPlayer({
       const swingVelocity = swingFoot.linvel();
       const swingMass = swingFoot.mass();
       const swingBlend =
-        Math.min(1, delta * 6.2)
-        * (supportStateAfterJump === "double" ? 1 : 0.72);
+        Math.min(1, delta * 4.2)
+        * (supportStateAfterJump === "double" ? 1 : 0.68);
       const desiredSwingVelocityY =
         supportStateAfterJump === "double"
-          ? MathUtils.lerp(0.28, 0.95, speedRatio)
-          : MathUtils.lerp(0.12, 0.46, speedRatio);
+          ? MathUtils.lerp(0.22, 0.62, speedRatio)
+          : MathUtils.lerp(0.1, 0.34, speedRatio);
 
       swingFoot.applyImpulse(
         {
-          x: (movement.x * speed * 0.42 - swingVelocity.x) * swingMass * swingBlend,
+          x: (movement.x * speed * 0.28 - swingVelocity.x) * swingMass * swingBlend,
           y: Math.max(0, desiredSwingVelocityY - swingVelocity.y)
             * swingMass
             * swingBlend,
-          z: (movement.z * speed * 0.42 - swingVelocity.z) * swingMass * swingBlend,
+          z: (movement.z * speed * 0.28 - swingVelocity.z) * swingMass * swingBlend,
         },
         true,
       );
     }
+
+    const idleKneeTarget = MathUtils.lerp(-0.08, -0.68, crouchAmount);
+    const stanceKneeTarget = idleKneeTarget - speedRatio * 0.05;
+    const swingKneeTarget = groundedAfterControl
+      ? idleKneeTarget - MathUtils.lerp(0.14, 0.44, speedRatio)
+      : -0.52;
+    const idleAnkleTarget = MathUtils.lerp(0.08, -0.08, crouchAmount);
+    const stanceAnkleTarget = groundedAfterControl ? idleAnkleTarget + speedRatio * 0.05 : -0.04;
+    const swingAnkleTarget = groundedAfterControl
+      ? idleAnkleTarget - MathUtils.lerp(0.08, 0.2, speedRatio)
+      : -0.12;
+    const armSwing = Math.sin(gaitPhaseRef.current) * 0.18 * speedRatio;
+    const elbowBaseTarget = groundedAfterControl
+      ? MathUtils.lerp(-0.34, -0.48, crouchAmount)
+      : -0.42;
+    const wristTarget = groundedAfterControl ? 0 : -0.05;
+
+    const leftKneeTarget =
+      swingSide === "left"
+        ? swingKneeTarget
+        : plannedSupportSide === "left"
+          ? stanceKneeTarget
+          : idleKneeTarget - airborneAmount * 0.16;
+    const rightKneeTarget =
+      swingSide === "right"
+        ? swingKneeTarget
+        : plannedSupportSide === "right"
+          ? stanceKneeTarget
+          : idleKneeTarget - airborneAmount * 0.16;
+    const leftAnkleTarget =
+      swingSide === "left"
+        ? swingAnkleTarget
+        : plannedSupportSide === "left"
+          ? stanceAnkleTarget
+          : idleAnkleTarget;
+    const rightAnkleTarget =
+      swingSide === "right"
+        ? swingAnkleTarget
+        : plannedSupportSide === "right"
+          ? stanceAnkleTarget
+          : idleAnkleTarget;
+
+    driveJointToPosition(
+      jointRefs.kneeLeft.current,
+      leftKneeTarget,
+      groundedAfterControl ? 22 : 14,
+      groundedAfterControl ? 4.2 : 3,
+    );
+    driveJointToPosition(
+      jointRefs.kneeRight.current,
+      rightKneeTarget,
+      groundedAfterControl ? 22 : 14,
+      groundedAfterControl ? 4.2 : 3,
+    );
+    driveJointToPosition(
+      jointRefs.ankleLeft.current,
+      leftAnkleTarget,
+      groundedAfterControl ? 15 : 9,
+      groundedAfterControl ? 3.1 : 2.3,
+    );
+    driveJointToPosition(
+      jointRefs.ankleRight.current,
+      rightAnkleTarget,
+      groundedAfterControl ? 15 : 9,
+      groundedAfterControl ? 3.1 : 2.3,
+    );
+    driveJointToPosition(
+      jointRefs.elbowLeft.current,
+      elbowBaseTarget + armSwing,
+      5.2,
+      1.8,
+    );
+    driveJointToPosition(
+      jointRefs.elbowRight.current,
+      elbowBaseTarget - armSwing,
+      5.2,
+      1.8,
+    );
+    driveJointToPosition(
+      jointRefs.wristLeft.current,
+      wristTarget,
+      3.8,
+      1.4,
+    );
+    driveJointToPosition(
+      jointRefs.wristRight.current,
+      wristTarget,
+      3.8,
+      1.4,
+    );
 
     rawFocus.set(
       MathUtils.lerp(rootPosition.x, chestPosition.x, 0.72),
@@ -592,16 +745,52 @@ export function MwendoActiveRagdollPlayer({
     Record<
       MwendoHumanoidBodyKey,
       {
+        additionalSolverIterations?: number;
+        angularDamping?: number;
+        enabledRotations?: [boolean, boolean, boolean];
+        linearDamping?: number;
         onCollisionEnter?: (payload: CollisionEnterPayload) => void;
         onCollisionExit?: (payload: CollisionExitPayload) => void;
       }
     >
   > = {
+    pelvis: {
+      additionalSolverIterations: 24,
+      angularDamping: 7.2,
+      enabledRotations: [false, true, false],
+      linearDamping: 3.1,
+    },
+    chest: {
+      additionalSolverIterations: 22,
+      angularDamping: 7,
+      enabledRotations: [false, true, false],
+      linearDamping: 2.8,
+    },
+    upperLegLeft: {
+      angularDamping: 6.2,
+      enabledRotations: [true, false, false],
+    },
+    lowerLegLeft: {
+      angularDamping: 6.4,
+      enabledRotations: [true, false, false],
+    },
     footLeft: {
+      angularDamping: 6.8,
+      enabledRotations: [true, false, false],
       onCollisionEnter: createGroundContactEnterHandler("left"),
       onCollisionExit: createGroundContactExitHandler("left"),
     },
+    upperLegRight: {
+      angularDamping: 6.2,
+      enabledRotations: [true, false, false],
+    },
+    lowerLegRight: {
+      angularDamping: 6.4,
+      enabledRotations: [true, false, false],
+    },
     footRight: {
+      angularDamping: 6.8,
+      enabledRotations: [true, false, false],
       onCollisionEnter: createGroundContactEnterHandler("right"),
       onCollisionExit: createGroundContactExitHandler("right"),
     },
@@ -614,7 +803,15 @@ export function MwendoActiveRagdollPlayer({
       debug={debug}
       ignoreCameraOcclusion
       position={position}
-      sharedBodyProps={{ canSleep: false }}
+      revoluteJointRefs={jointRefs}
+      sharedBodyProps={{
+        additionalSolverIterations: 16,
+        angularDamping: 5.2,
+        canSleep: false,
+        ccd: true,
+        linearDamping: 2.4,
+        softCcdPrediction: 0.25,
+      }}
     />
   );
 }
