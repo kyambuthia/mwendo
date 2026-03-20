@@ -15,8 +15,12 @@ import { useCharacterCtrlrStore, useCharacterCtrlrStoreApi } from "../CharacterC
 import { useCharacterCtrlrKeyboardInput } from "../useCharacterCtrlrKeyboardInput";
 import {
   DEFAULT_CHARACTER_CTRLR_INPUT,
+  type CharacterCtrlrBalanceState,
+  type CharacterCtrlrGaitPhase,
+  type CharacterCtrlrGaitTransitionReason,
   mergeCharacterCtrlrInput,
   type CharacterCtrlrInputState,
+  type CharacterCtrlrLocomotionDebugState,
   type CharacterCtrlrMovementMode,
   type CharacterCtrlrPlayerSnapshot,
   type CharacterCtrlrSupportState,
@@ -140,6 +144,75 @@ function deriveCommandEffort(
   return 0;
 }
 
+function deriveGaitPhaseDuration(
+  gaitPhase: CharacterCtrlrGaitPhase,
+  gaitEffort: number,
+) {
+  switch (gaitPhase) {
+    case "double-support":
+      return MathUtils.lerp(0.22, 0.1, gaitEffort);
+    case "left-stance":
+    case "right-stance":
+      return MathUtils.lerp(0.46, 0.24, gaitEffort);
+    case "airborne":
+      return 0.12;
+    case "idle":
+    default:
+      return 0;
+  }
+}
+
+function deriveBalanceState(
+  grounded: boolean,
+  supportState: CharacterCtrlrSupportState,
+  supportLateralError: number,
+  supportForwardError: number,
+  supportHeightError: number,
+): CharacterCtrlrBalanceState {
+  if (!grounded || supportState === "none") {
+    return "unsupported";
+  }
+
+  const supportError = Math.max(
+    Math.abs(supportLateralError),
+    Math.abs(supportForwardError),
+    Math.abs(supportHeightError),
+  );
+
+  return supportError > 0.22 ? "recovering" : "balanced";
+}
+
+type GaitState = {
+  phase: CharacterCtrlrGaitPhase;
+  phaseElapsed: number;
+  phaseDuration: number;
+  transitionReason: CharacterCtrlrGaitTransitionReason;
+  transitionCount: number;
+  lastStanceSide: SupportSide;
+};
+
+function transitionGaitState(
+  gaitState: GaitState,
+  nextPhase: CharacterCtrlrGaitPhase,
+  nextDuration: number,
+  reason: CharacterCtrlrGaitTransitionReason,
+) {
+  if (gaitState.phase !== nextPhase) {
+    gaitState.phase = nextPhase;
+    gaitState.phaseElapsed = 0;
+    gaitState.transitionReason = reason;
+    gaitState.transitionCount += 1;
+  }
+
+  gaitState.phaseDuration = nextDuration;
+
+  if (nextPhase === "left-stance") {
+    gaitState.lastStanceSide = "left";
+  } else if (nextPhase === "right-stance") {
+    gaitState.lastStanceSide = "right";
+  }
+}
+
 export function CharacterCtrlrActiveRagdollPlayer({
   position = [0, 2.5, 6],
   controls = "keyboard",
@@ -177,8 +250,17 @@ export function CharacterCtrlrActiveRagdollPlayer({
   const movementModeRef = useRef<CharacterCtrlrMovementMode>("idle");
   const jumpHeldRef = useRef(false);
   const gaitPhaseRef = useRef(0);
+  const gaitStateRef = useRef<GaitState>({
+    phase: "idle",
+    phaseElapsed: 0,
+    phaseDuration: 0,
+    transitionReason: "initial",
+    transitionCount: 0,
+    lastStanceSide: "right",
+  });
   const lastSnapshotRef = useRef<CharacterCtrlrPlayerSnapshot | null>(null);
   const focusPositionRef = useRef<CharacterCtrlrVec3 | null>(null);
+  const locomotionDebugRef = useRef<CharacterCtrlrLocomotionDebugState | null>(null);
   const initialPositionRef = useRef(position);
 
   const updateGrounded = (nextGrounded: boolean) => {
@@ -396,9 +478,81 @@ export function CharacterCtrlrActiveRagdollPlayer({
       grounded && hasMovementInput ? Math.max(speedRatio, commandEffort) : speedRatio;
     const crouchAmount = keys.crouch ? 1 : 0;
     const airborneAmount = grounded ? 0 : 1;
-
+    const gaitState = gaitStateRef.current;
+    gaitState.phaseElapsed += delta;
+    const cadence = MathUtils.lerp(2.8, 6.4, gaitEffort);
     if (grounded && hasMovementInput) {
-      gaitPhaseRef.current += delta * MathUtils.lerp(2.8, 6.4, gaitEffort);
+      gaitPhaseRef.current += delta * cadence;
+    }
+
+    const supportStateForPhase = supportStateAfterJump;
+    if (!grounded || supportStateForPhase === "none") {
+      transitionGaitState(
+        gaitState,
+        "airborne",
+        deriveGaitPhaseDuration("airborne", gaitEffort),
+        jumpTriggered ? "jump" : "support-lost",
+      );
+    } else if (!hasMovementInput) {
+      transitionGaitState(gaitState, "idle", 0, "idle-no-input");
+    } else if (supportStateForPhase === "left") {
+      transitionGaitState(
+        gaitState,
+        "left-stance",
+        deriveGaitPhaseDuration("left-stance", gaitEffort),
+        "left-foot-support",
+      );
+    } else if (supportStateForPhase === "right") {
+      transitionGaitState(
+        gaitState,
+        "right-stance",
+        deriveGaitPhaseDuration("right-stance", gaitEffort),
+        "right-foot-support",
+      );
+    } else if (gaitState.phase === "airborne") {
+      transitionGaitState(
+        gaitState,
+        "double-support",
+        deriveGaitPhaseDuration("double-support", gaitEffort),
+        "landing-support",
+      );
+    } else if (gaitState.phase === "idle") {
+      transitionGaitState(
+        gaitState,
+        "double-support",
+        deriveGaitPhaseDuration("double-support", gaitEffort),
+        "movement-start",
+      );
+    } else if (
+      gaitState.phase === "double-support"
+      && gaitState.phaseDuration > 0
+      && gaitState.phaseElapsed >= gaitState.phaseDuration
+    ) {
+      const nextStanceSide: SupportSide =
+        gaitState.lastStanceSide === "left" ? "right" : "left";
+      transitionGaitState(
+        gaitState,
+        nextStanceSide === "left" ? "left-stance" : "right-stance",
+        deriveGaitPhaseDuration(
+          nextStanceSide === "left" ? "left-stance" : "right-stance",
+          gaitEffort,
+        ),
+        "double-support-timeout",
+      );
+    } else if (
+      (gaitState.phase === "left-stance" || gaitState.phase === "right-stance")
+      && gaitState.phaseDuration > 0
+      && gaitState.phaseElapsed >= gaitState.phaseDuration
+      && supportStateForPhase === "double"
+    ) {
+      transitionGaitState(
+        gaitState,
+        "double-support",
+        deriveGaitPhaseDuration("double-support", gaitEffort),
+        "stance-timeout",
+      );
+    } else {
+      gaitState.phaseDuration = deriveGaitPhaseDuration(gaitState.phase, gaitEffort);
     }
 
     pelvis.applyTorqueImpulse(
@@ -473,15 +627,15 @@ export function CharacterCtrlrActiveRagdollPlayer({
     );
 
     const plannedSupportSide: SupportSide | null =
-      supportStateAfterJump === "left"
+      gaitState.phase === "left-stance"
         ? "left"
-        : supportStateAfterJump === "right"
+        : gaitState.phase === "right-stance"
           ? "right"
-          : grounded && hasMovementInput
-            ? Math.sin(gaitPhaseRef.current) >= 0
-              ? "left"
-              : "right"
-            : null;
+          : supportStateAfterJump === "left"
+            ? "left"
+            : supportStateAfterJump === "right"
+              ? "right"
+              : null;
     const swingSide: SupportSide | null =
       plannedSupportSide === "left"
         ? "right"
@@ -509,6 +663,10 @@ export function CharacterCtrlrActiveRagdollPlayer({
 
     facingRight.set(Math.cos(facing), 0, -Math.sin(facing));
     facingForward.set(Math.sin(facing), 0, Math.cos(facing));
+
+    let supportLateralError = 0;
+    let supportForwardError = 0;
+    let supportHeightError = 0;
 
     if (groundedAfterControl) {
       supportCenter.set(0, 0, 0);
@@ -562,6 +720,9 @@ export function CharacterCtrlrActiveRagdollPlayer({
         const desiredPelvisHeight =
           supportCenter.y + MathUtils.lerp(1.34, 1.08, crouchAmount);
         const heightError = desiredPelvisHeight - rootPosition.y;
+        supportLateralError = lateralError;
+        supportForwardError = forwardError;
+        supportHeightError = heightError;
         const heightImpulse = MathUtils.clamp(
           (heightError * 9.5 - currentVelocity.y * 1.8) * pelvisMass * delta,
           -0.12,
@@ -875,6 +1036,38 @@ export function CharacterCtrlrActiveRagdollPlayer({
       onLand?.(snapshot);
     }
     lastSnapshotRef.current = snapshot;
+    locomotionDebugRef.current = {
+      movementMode: nextMovementMode,
+      gaitPhase: gaitState.phase,
+      gaitTransitionReason: gaitState.transitionReason,
+      balanceState: deriveBalanceState(
+        groundedAfterControl,
+        supportStateAfterJump,
+        supportLateralError,
+        supportForwardError,
+        supportHeightError,
+      ),
+      supportState: supportStateAfterJump,
+      plannedSupportSide,
+      swingSide,
+      grounded: groundedAfterControl,
+      hasMovementInput,
+      gaitPhaseValue: gaitState.phaseDuration > 0
+        ? Math.min(1, gaitState.phaseElapsed / gaitState.phaseDuration)
+        : 0,
+      gaitPhaseElapsed: gaitState.phaseElapsed,
+      gaitPhaseDuration: gaitState.phaseDuration,
+      gaitTransitionCount: gaitState.transitionCount,
+      gaitEffort,
+      commandEffort,
+      speedRatio,
+      horizontalSpeed,
+      leftSupportContacts: leftSupportContactsRef.current.size,
+      rightSupportContacts: rightSupportContactsRef.current.size,
+      supportLateralError,
+      supportForwardError,
+      supportHeightError,
+    };
   });
 
   const articulatedBodyProps: Partial<
@@ -967,6 +1160,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
       bodyRefs={bodyRefs}
       debug={debug}
       ignoreCameraOcclusion
+      locomotionDebugRef={locomotionDebugRef}
       position={position}
       revoluteJointRefs={jointRefs}
       sharedBodyProps={{
