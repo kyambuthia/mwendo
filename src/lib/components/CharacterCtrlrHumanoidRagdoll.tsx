@@ -13,7 +13,10 @@ import {
   type MutableRefObject,
   type RefObject,
 } from "react";
-import type { CharacterCtrlrVec3 } from "../types";
+import type {
+  CharacterCtrlrLocomotionDebugState,
+  CharacterCtrlrVec3,
+} from "../types";
 import {
   CharacterCtrlrRagdollDebug,
   type CharacterCtrlrRagdollBodyDescriptor,
@@ -50,6 +53,7 @@ export type CharacterCtrlrHumanoidRagdollProps = {
   timeScale?: number;
   manualStepCount?: number;
   ignoreCameraOcclusion?: boolean;
+  locomotionDebugRef?: RefObject<CharacterCtrlrLocomotionDebugState | null>;
   bodyRefs?: CharacterCtrlrHumanoidBodyRefs;
   revoluteJointRefs?: CharacterCtrlrHumanoidRevoluteJointRefs;
   sharedBodyProps?: CharacterCtrlrHumanoidBodyOverrides;
@@ -208,6 +212,7 @@ export function CharacterCtrlrHumanoidRagdoll({
   timeScale = 1,
   manualStepCount = 0,
   ignoreCameraOcclusion = false,
+  locomotionDebugRef,
   bodyRefs: externalBodyRefs,
   revoluteJointRefs,
   sharedBodyProps,
@@ -248,6 +253,7 @@ export function CharacterCtrlrHumanoidRagdoll({
         <CharacterCtrlrRagdollDebug
           bodies={bodyDescriptors}
           joints={jointDescriptors}
+          locomotionDebugRef={locomotionDebugRef}
           manualStepCount={manualStepCount}
           origin={position}
           paused={paused}
