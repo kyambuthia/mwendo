@@ -80,6 +80,306 @@ type PhasePoseTargets = {
   right: PhaseLimbPoseTargets;
 };
 
+type CharacterCtrlrGaitConfig = {
+  commandEffort: number;
+  postureAmount: number;
+  cadenceRange: [number, number];
+  phaseDurations: {
+    doubleSupport: [number, number];
+    stance: [number, number];
+    airborne: number;
+  };
+  step: {
+    length: [number, number];
+    width: [number, number];
+    height: [number, number];
+    pelvisLeadScale: [number, number];
+    pelvisHeight: [number, number];
+  };
+  support: {
+    centering: {
+      double: number;
+      single: number;
+    };
+    forwarding: {
+      double: [number, number];
+      single: [number, number];
+    };
+    captureFeedback: {
+      lateral: [number, number];
+      forward: [number, number];
+      swingLateral: [number, number];
+      swingForward: [number, number];
+    };
+    phaseCompression: number;
+  };
+  swing: {
+    placement: {
+      double: [number, number];
+      single: [number, number];
+    };
+    drive: [number, number];
+    heightDrive: [number, number];
+  };
+  pose: {
+    baseHip: [number, number];
+    baseKnee: [number, number];
+    baseAnkle: [number, number];
+    baseShoulder: [number, number];
+    baseElbow: [number, number];
+    pelvisPitch: [number, number];
+    chestPitch: [number, number];
+    doubleSupportCompression: [number, number];
+    doubleSupportArmCounter: [number, number];
+    swingReach: [number, number];
+    stanceDrive: [number, number];
+    pelvisLean: [number, number];
+    pelvisRoll: [number, number];
+    shoulderDrive: [number, number];
+    elbowDrive: [number, number];
+    swingKnee: [number, number];
+    swingAnkle: [number, number];
+  };
+};
+
+const GAIT_CONFIGS: Record<
+  "idle" | "walk" | "run" | "crouch",
+  CharacterCtrlrGaitConfig
+> = {
+  idle: {
+    commandEffort: 0,
+    postureAmount: 0,
+    cadenceRange: [0, 0],
+    phaseDurations: {
+      doubleSupport: [0.22, 0.22],
+      stance: [0.46, 0.46],
+      airborne: 0.12,
+    },
+    step: {
+      length: [0, 0],
+      width: [0.2, 0.2],
+      height: [0.02, 0.02],
+      pelvisLeadScale: [0, 0],
+      pelvisHeight: [1.34, 1.34],
+    },
+    support: {
+      centering: { double: 3.2, single: 5.4 },
+      forwarding: {
+        double: [1.6, 1.6],
+        single: [3.1, 3.1],
+      },
+      captureFeedback: {
+        lateral: [0.45, 0.45],
+        forward: [0.5, 0.5],
+        swingLateral: [0.22, 0.22],
+        swingForward: [0.35, 0.35],
+      },
+      phaseCompression: 0.72,
+    },
+    swing: {
+      placement: {
+        double: [4.8, 4.8],
+        single: [3.8, 3.8],
+      },
+      drive: [0.38, 0.38],
+      heightDrive: [12, 12],
+    },
+    pose: {
+      baseHip: [0.02, 0.02],
+      baseKnee: [-0.08, -0.08],
+      baseAnkle: [0.08, 0.08],
+      baseShoulder: [0.1, 0.1],
+      baseElbow: [-0.34, -0.34],
+      pelvisPitch: [-0.01, -0.01],
+      chestPitch: [0.03, 0.03],
+      doubleSupportCompression: [0.04, 0.04],
+      doubleSupportArmCounter: [0.04, 0.04],
+      swingReach: [-0.12, 0.2],
+      stanceDrive: [0.08, 0.08],
+      pelvisLean: [0.03, 0.03],
+      pelvisRoll: [0.03, 0.03],
+      shoulderDrive: [0.16, 0.16],
+      elbowDrive: [0.04, 0.04],
+      swingKnee: [0.18, 0.18],
+      swingAnkle: [0.08, 0.08],
+    },
+  },
+  walk: {
+    commandEffort: 0.6,
+    postureAmount: 0,
+    cadenceRange: [2.8, 5.2],
+    phaseDurations: {
+      doubleSupport: [0.22, 0.12],
+      stance: [0.46, 0.28],
+      airborne: 0.12,
+    },
+    step: {
+      length: [0.22, 0.54],
+      width: [0.2, 0.24],
+      height: [0.08, 0.2],
+      pelvisLeadScale: [0.32, 0.44],
+      pelvisHeight: [1.34, 1.08],
+    },
+    support: {
+      centering: { double: 3.2, single: 5.4 },
+      forwarding: {
+        double: [1.6, 2.6],
+        single: [3.1, 4.4],
+      },
+      captureFeedback: {
+        lateral: [0.45, 0.8],
+        forward: [0.5, 0.92],
+        swingLateral: [0.22, 0.42],
+        swingForward: [0.35, 0.65],
+      },
+      phaseCompression: 0.72,
+    },
+    swing: {
+      placement: {
+        double: [4.8, 7.4],
+        single: [3.8, 5.8],
+      },
+      drive: [0.38, 0.62],
+      heightDrive: [12, 18],
+    },
+    pose: {
+      baseHip: [0.02, -0.22],
+      baseKnee: [-0.08, -0.68],
+      baseAnkle: [0.08, -0.08],
+      baseShoulder: [0.1, 0.2],
+      baseElbow: [-0.34, -0.48],
+      pelvisPitch: [-0.01, -0.08],
+      chestPitch: [0.03, 0.14],
+      doubleSupportCompression: [0.04, 0.14],
+      doubleSupportArmCounter: [0.04, 0.12],
+      swingReach: [-0.12, 0.34],
+      stanceDrive: [0.08, 0.18],
+      pelvisLean: [0.03, 0.11],
+      pelvisRoll: [0.03, 0.09],
+      shoulderDrive: [0.16, 0.4],
+      elbowDrive: [0.04, 0.18],
+      swingKnee: [0.18, 0.48],
+      swingAnkle: [0.08, 0.22],
+    },
+  },
+  run: {
+    commandEffort: 0.94,
+    postureAmount: 0.12,
+    cadenceRange: [4.6, 6.8],
+    phaseDurations: {
+      doubleSupport: [0.16, 0.08],
+      stance: [0.34, 0.2],
+      airborne: 0.14,
+    },
+    step: {
+      length: [0.34, 0.72],
+      width: [0.16, 0.18],
+      height: [0.12, 0.26],
+      pelvisLeadScale: [0.38, 0.52],
+      pelvisHeight: [1.32, 1.06],
+    },
+    support: {
+      centering: { double: 3.5, single: 5.8 },
+      forwarding: {
+        double: [2.1, 3.2],
+        single: [3.8, 5.1],
+      },
+      captureFeedback: {
+        lateral: [0.55, 0.95],
+        forward: [0.62, 1.1],
+        swingLateral: [0.28, 0.48],
+        swingForward: [0.45, 0.82],
+      },
+      phaseCompression: 0.66,
+    },
+    swing: {
+      placement: {
+        double: [5.8, 8.8],
+        single: [4.4, 6.8],
+      },
+      drive: [0.52, 0.82],
+      heightDrive: [14, 22],
+    },
+    pose: {
+      baseHip: [0, -0.18],
+      baseKnee: [-0.12, -0.42],
+      baseAnkle: [0.04, -0.06],
+      baseShoulder: [0.12, 0.18],
+      baseElbow: [-0.32, -0.46],
+      pelvisPitch: [-0.03, -0.1],
+      chestPitch: [0.04, 0.16],
+      doubleSupportCompression: [0.06, 0.12],
+      doubleSupportArmCounter: [0.08, 0.18],
+      swingReach: [-0.08, 0.48],
+      stanceDrive: [0.12, 0.24],
+      pelvisLean: [0.06, 0.14],
+      pelvisRoll: [0.04, 0.1],
+      shoulderDrive: [0.28, 0.56],
+      elbowDrive: [0.08, 0.22],
+      swingKnee: [0.28, 0.58],
+      swingAnkle: [0.14, 0.26],
+    },
+  },
+  crouch: {
+    commandEffort: 0.32,
+    postureAmount: 1,
+    cadenceRange: [2.1, 4],
+    phaseDurations: {
+      doubleSupport: [0.26, 0.16],
+      stance: [0.52, 0.34],
+      airborne: 0.12,
+    },
+    step: {
+      length: [0.12, 0.28],
+      width: [0.24, 0.28],
+      height: [0.06, 0.14],
+      pelvisLeadScale: [0.24, 0.34],
+      pelvisHeight: [1.16, 1.02],
+    },
+    support: {
+      centering: { double: 3.6, single: 5.9 },
+      forwarding: {
+        double: [1.4, 2.1],
+        single: [2.6, 3.6],
+      },
+      captureFeedback: {
+        lateral: [0.38, 0.66],
+        forward: [0.42, 0.74],
+        swingLateral: [0.18, 0.3],
+        swingForward: [0.24, 0.46],
+      },
+      phaseCompression: 0.78,
+    },
+    swing: {
+      placement: {
+        double: [4.4, 6.2],
+        single: [3.4, 4.8],
+      },
+      drive: [0.28, 0.5],
+      heightDrive: [10, 14],
+    },
+    pose: {
+      baseHip: [0.02, -0.22],
+      baseKnee: [-0.08, -0.68],
+      baseAnkle: [0.08, -0.08],
+      baseShoulder: [0.1, 0.2],
+      baseElbow: [-0.34, -0.48],
+      pelvisPitch: [-0.01, -0.08],
+      chestPitch: [0.03, 0.14],
+      doubleSupportCompression: [0.06, 0.18],
+      doubleSupportArmCounter: [0.02, 0.08],
+      swingReach: [-0.08, 0.18],
+      stanceDrive: [0.12, 0.22],
+      pelvisLean: [0.02, 0.08],
+      pelvisRoll: [0.02, 0.06],
+      shoulderDrive: [0.08, 0.22],
+      elbowDrive: [0.03, 0.12],
+      swingKnee: [0.24, 0.54],
+      swingAnkle: [0.1, 0.18],
+    },
+  },
+};
+
 export type CharacterCtrlrActiveRagdollPlayerProps = {
   position?: CharacterCtrlrVec3;
   controls?: "keyboard" | "none";
@@ -147,41 +447,45 @@ function driveJointToPosition(
   joint.configureMotorPosition(targetPosition, stiffness, damping);
 }
 
-function deriveCommandEffort(
+function getGaitConfig(
   locomotionMode: CharacterCtrlrMovementMode,
-  walkSpeed: number,
-  runSpeed: number,
-  crouchSpeed: number,
-) {
-  const safeRunSpeed = Math.max(0.001, runSpeed);
-
-  if (locomotionMode === "run") {
-    return 0.94;
+): CharacterCtrlrGaitConfig {
+  switch (locomotionMode) {
+    case "run":
+      return GAIT_CONFIGS.run;
+    case "walk":
+      return GAIT_CONFIGS.walk;
+    case "crouch":
+      return GAIT_CONFIGS.crouch;
+    case "idle":
+    case "jump":
+    case "fall":
+    default:
+      return GAIT_CONFIGS.idle;
   }
-
-  if (locomotionMode === "walk") {
-    return MathUtils.clamp(walkSpeed / safeRunSpeed, 0.52, 0.68);
-  }
-
-  if (locomotionMode === "crouch") {
-    return MathUtils.clamp(crouchSpeed / safeRunSpeed, 0.24, 0.4);
-  }
-
-  return 0;
 }
 
 function deriveGaitPhaseDuration(
   gaitPhase: CharacterCtrlrGaitPhase,
   gaitEffort: number,
+  gaitConfig: CharacterCtrlrGaitConfig,
 ) {
   switch (gaitPhase) {
     case "double-support":
-      return MathUtils.lerp(0.22, 0.1, gaitEffort);
+      return MathUtils.lerp(
+        gaitConfig.phaseDurations.doubleSupport[0],
+        gaitConfig.phaseDurations.doubleSupport[1],
+        gaitEffort,
+      );
     case "left-stance":
     case "right-stance":
-      return MathUtils.lerp(0.46, 0.24, gaitEffort);
+      return MathUtils.lerp(
+        gaitConfig.phaseDurations.stance[0],
+        gaitConfig.phaseDurations.stance[1],
+        gaitEffort,
+      );
     case "airborne":
-      return 0.12;
+      return gaitConfig.phaseDurations.airborne;
     case "idle":
     default:
       return 0;
@@ -210,13 +514,36 @@ function deriveBalanceState(
 
 function buildBaseLimbPoseTargets(
   grounded: boolean,
-  crouchAmount: number,
+  gaitConfig: CharacterCtrlrGaitConfig,
 ) {
-  const hip = grounded ? MathUtils.lerp(0.02, -0.22, crouchAmount) : -0.08;
-  const knee = MathUtils.lerp(-0.08, -0.68, crouchAmount);
-  const ankle = MathUtils.lerp(0.08, -0.08, crouchAmount);
-  const shoulder = grounded ? MathUtils.lerp(0.1, 0.2, crouchAmount) : 0.16;
-  const elbow = grounded ? MathUtils.lerp(-0.34, -0.48, crouchAmount) : -0.42;
+  const postureAmount = gaitConfig.postureAmount;
+  const hip = grounded
+    ? MathUtils.lerp(gaitConfig.pose.baseHip[0], gaitConfig.pose.baseHip[1], postureAmount)
+    : -0.08;
+  const knee = MathUtils.lerp(
+    gaitConfig.pose.baseKnee[0],
+    gaitConfig.pose.baseKnee[1],
+    postureAmount,
+  );
+  const ankle = MathUtils.lerp(
+    gaitConfig.pose.baseAnkle[0],
+    gaitConfig.pose.baseAnkle[1],
+    postureAmount,
+  );
+  const shoulder = grounded
+    ? MathUtils.lerp(
+        gaitConfig.pose.baseShoulder[0],
+        gaitConfig.pose.baseShoulder[1],
+        postureAmount,
+      )
+    : 0.16;
+  const elbow = grounded
+    ? MathUtils.lerp(
+        gaitConfig.pose.baseElbow[0],
+        gaitConfig.pose.baseElbow[1],
+        postureAmount,
+      )
+    : -0.42;
   const wrist = grounded ? 0 : -0.05;
 
   return { hip, knee, ankle, shoulder, elbow, wrist };
@@ -226,24 +553,32 @@ function derivePhasePoseTargets(params: {
   gaitPhase: CharacterCtrlrGaitPhase;
   gaitPhaseValue: number;
   gaitEffort: number;
-  crouchAmount: number;
+  gaitConfig: CharacterCtrlrGaitConfig;
   grounded: boolean;
 }): PhasePoseTargets {
   const {
     gaitPhase,
     gaitPhaseValue,
     gaitEffort,
-    crouchAmount,
+    gaitConfig,
     grounded,
   } = params;
-  const base = buildBaseLimbPoseTargets(grounded, crouchAmount);
+  const base = buildBaseLimbPoseTargets(grounded, gaitConfig);
   const targets: PhasePoseTargets = {
     pelvisPitch: grounded
-      ? MathUtils.lerp(-0.01, -0.08, crouchAmount)
+      ? MathUtils.lerp(
+          gaitConfig.pose.pelvisPitch[0],
+          gaitConfig.pose.pelvisPitch[1],
+          gaitConfig.postureAmount,
+        )
       : -0.06,
     pelvisRoll: 0,
     chestPitch: grounded
-      ? MathUtils.lerp(0.03, 0.14, crouchAmount)
+      ? MathUtils.lerp(
+          gaitConfig.pose.chestPitch[0],
+          gaitConfig.pose.chestPitch[1],
+          gaitConfig.postureAmount,
+        )
       : 0.08,
     chestRoll: 0,
     left: { ...base },
@@ -267,8 +602,16 @@ function derivePhasePoseTargets(params: {
   }
 
   if (gaitPhase === "double-support") {
-    const supportCompression = MathUtils.lerp(0.04, 0.14, gaitEffort);
-    const armCounter = MathUtils.lerp(0.04, 0.12, gaitEffort)
+    const supportCompression = MathUtils.lerp(
+      gaitConfig.pose.doubleSupportCompression[0],
+      gaitConfig.pose.doubleSupportCompression[1],
+      gaitEffort,
+    );
+    const armCounter = MathUtils.lerp(
+      gaitConfig.pose.doubleSupportArmCounter[0],
+      gaitConfig.pose.doubleSupportArmCounter[1],
+      gaitEffort,
+    )
       * Math.sin(gaitPhaseValue * Math.PI);
     targets.pelvisPitch -= supportCompression * 0.45;
     targets.chestPitch += supportCompression * 0.3;
@@ -289,13 +632,37 @@ function derivePhasePoseTargets(params: {
     gaitPhase === "left-stance" ? "left" : "right";
   const swingSide: SupportSide = stanceSide === "left" ? "right" : "left";
   const swingLift = Math.sin(gaitPhaseValue * Math.PI);
-  const swingReach = MathUtils.lerp(-0.12, 0.34, gaitPhaseValue) * gaitEffort;
-  const stanceDrive = MathUtils.lerp(0.08, 0.18, gaitEffort);
-  const pelvisLean = MathUtils.lerp(0.03, 0.11, gaitEffort);
+  const swingReach = MathUtils.lerp(
+    gaitConfig.pose.swingReach[0],
+    gaitConfig.pose.swingReach[1],
+    gaitPhaseValue,
+  ) * gaitEffort;
+  const stanceDrive = MathUtils.lerp(
+    gaitConfig.pose.stanceDrive[0],
+    gaitConfig.pose.stanceDrive[1],
+    gaitEffort,
+  );
+  const pelvisLean = MathUtils.lerp(
+    gaitConfig.pose.pelvisLean[0],
+    gaitConfig.pose.pelvisLean[1],
+    gaitEffort,
+  );
   const pelvisRoll = (stanceSide === "left" ? -1 : 1)
-    * MathUtils.lerp(0.03, 0.09, gaitEffort);
-  const shoulderDrive = MathUtils.lerp(0.16, 0.4, gaitEffort);
-  const elbowDrive = MathUtils.lerp(0.04, 0.18, gaitEffort) * swingLift;
+    * MathUtils.lerp(
+      gaitConfig.pose.pelvisRoll[0],
+      gaitConfig.pose.pelvisRoll[1],
+      gaitEffort,
+    );
+  const shoulderDrive = MathUtils.lerp(
+    gaitConfig.pose.shoulderDrive[0],
+    gaitConfig.pose.shoulderDrive[1],
+    gaitEffort,
+  );
+  const elbowDrive = MathUtils.lerp(
+    gaitConfig.pose.elbowDrive[0],
+    gaitConfig.pose.elbowDrive[1],
+    gaitEffort,
+  ) * swingLift;
 
   targets.pelvisPitch -= pelvisLean;
   targets.pelvisRoll = pelvisRoll;
@@ -307,8 +674,16 @@ function derivePhasePoseTargets(params: {
   targets[stanceSide].ankle += stanceDrive * 0.42;
 
   targets[swingSide].hip += swingReach;
-  targets[swingSide].knee -= MathUtils.lerp(0.18, 0.48, gaitEffort) * swingLift;
-  targets[swingSide].ankle -= MathUtils.lerp(0.08, 0.22, gaitEffort) * swingLift;
+  targets[swingSide].knee -= MathUtils.lerp(
+    gaitConfig.pose.swingKnee[0],
+    gaitConfig.pose.swingKnee[1],
+    gaitEffort,
+  ) * swingLift;
+  targets[swingSide].ankle -= MathUtils.lerp(
+    gaitConfig.pose.swingAnkle[0],
+    gaitConfig.pose.swingAnkle[1],
+    gaitEffort,
+  ) * swingLift;
 
   targets[stanceSide].shoulder += shoulderDrive;
   targets[swingSide].shoulder -= shoulderDrive;
@@ -536,6 +911,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
 
     const actualSupportState = supportStateRef.current;
     const grounded = actualSupportState !== "none";
+    const gaitConfig = getGaitConfig(locomotionMode);
     const locomotionBlend = Math.min(
       1,
       acceleration
@@ -608,16 +984,18 @@ export function CharacterCtrlrActiveRagdollPlayer({
     const yawError = angleDifference(pelvisEuler.y, targetFacing);
     const horizontalSpeed = Math.hypot(currentVelocity.x, currentVelocity.z);
     const speedRatio = Math.min(1, horizontalSpeed / Math.max(0.001, runSpeed));
-    const commandEffort = hasMovementInput
-      ? deriveCommandEffort(locomotionMode, walkSpeed, runSpeed, crouchSpeed)
-      : 0;
+    const commandEffort = hasMovementInput ? gaitConfig.commandEffort : 0;
     const gaitEffort =
       grounded && hasMovementInput ? Math.max(speedRatio, commandEffort) : speedRatio;
-    const crouchAmount = keys.crouch ? 1 : 0;
+    const postureAmount = gaitConfig.postureAmount;
     const airborneAmount = grounded ? 0 : 1;
     const gaitState = gaitStateRef.current;
     gaitState.phaseElapsed += delta;
-    const cadence = MathUtils.lerp(2.8, 6.4, gaitEffort);
+    const cadence = MathUtils.lerp(
+      gaitConfig.cadenceRange[0],
+      gaitConfig.cadenceRange[1],
+      gaitEffort,
+    );
     if (grounded && hasMovementInput) {
       gaitPhaseRef.current += delta * cadence;
     }
@@ -627,7 +1005,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
       transitionGaitState(
         gaitState,
         "airborne",
-        deriveGaitPhaseDuration("airborne", gaitEffort),
+        deriveGaitPhaseDuration("airborne", gaitEffort, gaitConfig),
         jumpTriggered ? "jump" : "support-lost",
       );
     } else if (!hasMovementInput) {
@@ -636,28 +1014,28 @@ export function CharacterCtrlrActiveRagdollPlayer({
       transitionGaitState(
         gaitState,
         "left-stance",
-        deriveGaitPhaseDuration("left-stance", gaitEffort),
+        deriveGaitPhaseDuration("left-stance", gaitEffort, gaitConfig),
         "left-foot-support",
       );
     } else if (supportStateForPhase === "right") {
       transitionGaitState(
         gaitState,
         "right-stance",
-        deriveGaitPhaseDuration("right-stance", gaitEffort),
+        deriveGaitPhaseDuration("right-stance", gaitEffort, gaitConfig),
         "right-foot-support",
       );
     } else if (gaitState.phase === "airborne") {
       transitionGaitState(
         gaitState,
         "double-support",
-        deriveGaitPhaseDuration("double-support", gaitEffort),
+        deriveGaitPhaseDuration("double-support", gaitEffort, gaitConfig),
         "landing-support",
       );
     } else if (gaitState.phase === "idle") {
       transitionGaitState(
         gaitState,
         "double-support",
-        deriveGaitPhaseDuration("double-support", gaitEffort),
+        deriveGaitPhaseDuration("double-support", gaitEffort, gaitConfig),
         "movement-start",
       );
     } else if (
@@ -673,6 +1051,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
         deriveGaitPhaseDuration(
           nextStanceSide === "left" ? "left-stance" : "right-stance",
           gaitEffort,
+          gaitConfig,
         ),
         "double-support-timeout",
       );
@@ -685,11 +1064,15 @@ export function CharacterCtrlrActiveRagdollPlayer({
       transitionGaitState(
         gaitState,
         "double-support",
-        deriveGaitPhaseDuration("double-support", gaitEffort),
+        deriveGaitPhaseDuration("double-support", gaitEffort, gaitConfig),
         "stance-timeout",
       );
     } else {
-      gaitState.phaseDuration = deriveGaitPhaseDuration(gaitState.phase, gaitEffort);
+      gaitState.phaseDuration = deriveGaitPhaseDuration(
+        gaitState.phase,
+        gaitEffort,
+        gaitConfig,
+      );
     }
     const gaitPhaseValue = gaitState.phaseDuration > 0
       ? Math.min(1, gaitState.phaseElapsed / gaitState.phaseDuration)
@@ -715,7 +1098,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
       gaitPhase: gaitState.phase,
       gaitPhaseValue,
       gaitEffort,
-      crouchAmount,
+      gaitConfig,
       grounded: groundedAfterControl,
     });
 
@@ -819,26 +1202,14 @@ export function CharacterCtrlrActiveRagdollPlayer({
     let captureUrgency = 0;
     const stepLengthTarget =
       groundedAfterControl && hasMovementInput
-        ? locomotionMode === "run"
-          ? MathUtils.lerp(0.34, 0.72, gaitEffort)
-          : locomotionMode === "crouch"
-            ? MathUtils.lerp(0.12, 0.28, gaitEffort)
-            : MathUtils.lerp(0.22, 0.54, gaitEffort)
+        ? MathUtils.lerp(gaitConfig.step.length[0], gaitConfig.step.length[1], gaitEffort)
         : 0;
     const stepWidthTarget = groundedAfterControl
-      ? MathUtils.lerp(
-          locomotionMode === "run" ? 0.16 : 0.2,
-          locomotionMode === "crouch" ? 0.28 : 0.24,
-          crouchAmount,
-        )
+      ? MathUtils.lerp(gaitConfig.step.width[0], gaitConfig.step.width[1], postureAmount)
       : 0.2;
     const stepHeightTarget =
       groundedAfterControl && hasMovementInput
-        ? locomotionMode === "run"
-          ? MathUtils.lerp(0.12, 0.26, gaitEffort)
-          : locomotionMode === "crouch"
-            ? MathUtils.lerp(0.06, 0.14, gaitEffort)
-            : MathUtils.lerp(0.08, 0.2, gaitEffort)
+        ? MathUtils.lerp(gaitConfig.step.height[0], gaitConfig.step.height[1], gaitEffort)
         : 0.02;
 
     centerOfMassPosition.set(0, 0, 0);
@@ -932,7 +1303,11 @@ export function CharacterCtrlrActiveRagdollPlayer({
         const desiredPelvisLead =
           groundedAfterControl && hasMovementInput
             ? stepLengthTarget
-              * MathUtils.lerp(0.32, 0.44, gaitEffort)
+              * MathUtils.lerp(
+                gaitConfig.step.pelvisLeadScale[0],
+                gaitConfig.step.pelvisLeadScale[1],
+                gaitEffort,
+              )
               * (supportStateAfterJump === "double" ? 0.82 : 1.05)
             : 0;
         const captureHeight = Math.max(0.2, centerOfMassPosition.y - supportCenter.y);
@@ -953,23 +1328,41 @@ export function CharacterCtrlrActiveRagdollPlayer({
           + (supportCenter.z - rootPosition.z) * facingForward.z
           + desiredPelvisLead;
         const captureLateralFeedback = MathUtils.clamp(
-          captureLateralError * MathUtils.lerp(0.45, 0.8, gaitEffort),
+          captureLateralError * MathUtils.lerp(
+            gaitConfig.support.captureFeedback.lateral[0],
+            gaitConfig.support.captureFeedback.lateral[1],
+            gaitEffort,
+          ),
           -0.18,
           0.18,
         );
         const captureForwardFeedback = MathUtils.clamp(
-          captureForwardError * MathUtils.lerp(0.5, 0.92, gaitEffort),
+          captureForwardError * MathUtils.lerp(
+            gaitConfig.support.captureFeedback.forward[0],
+            gaitConfig.support.captureFeedback.forward[1],
+            gaitEffort,
+          ),
           -0.14,
           0.26,
         );
         const correctedLateralError = lateralError + captureLateralFeedback;
         const correctedForwardError = forwardError + captureForwardFeedback;
         const supportCentering =
-          supportStateAfterJump === "double" ? 3.2 : 5.4;
+          supportStateAfterJump === "double"
+            ? gaitConfig.support.centering.double
+            : gaitConfig.support.centering.single;
         const supportForwarding =
           supportStateAfterJump === "double"
-            ? MathUtils.lerp(1.6, 2.6, gaitEffort)
-            : MathUtils.lerp(3.1, 4.4, gaitEffort);
+            ? MathUtils.lerp(
+                gaitConfig.support.forwarding.double[0],
+                gaitConfig.support.forwarding.double[1],
+                gaitEffort,
+              )
+            : MathUtils.lerp(
+                gaitConfig.support.forwarding.single[0],
+                gaitConfig.support.forwarding.single[1],
+                gaitEffort,
+              );
         captureUrgency = MathUtils.clamp(
           Math.max(
             Math.abs(captureLateralError) * 2.2,
@@ -979,7 +1372,11 @@ export function CharacterCtrlrActiveRagdollPlayer({
           1,
         );
         const desiredPelvisHeight =
-          supportCenter.y + MathUtils.lerp(1.34, 1.08, crouchAmount);
+          supportCenter.y + MathUtils.lerp(
+            gaitConfig.step.pelvisHeight[0],
+            gaitConfig.step.pelvisHeight[1],
+            postureAmount,
+          );
         const heightError = desiredPelvisHeight - rootPosition.y;
         supportLateralError = lateralError;
         supportForwardError = forwardError;
@@ -1026,10 +1423,18 @@ export function CharacterCtrlrActiveRagdollPlayer({
       && (gaitState.phase === "left-stance" || gaitState.phase === "right-stance")
       && gaitState.phaseDuration > 0
     ) {
-      const basePhaseDuration = deriveGaitPhaseDuration(gaitState.phase, gaitEffort);
+      const basePhaseDuration = deriveGaitPhaseDuration(
+        gaitState.phase,
+        gaitEffort,
+        gaitConfig,
+      );
       gaitState.phaseDuration = Math.max(
         0.16,
-        MathUtils.lerp(basePhaseDuration, basePhaseDuration * 0.72, captureUrgency),
+        MathUtils.lerp(
+          basePhaseDuration,
+          basePhaseDuration * gaitConfig.support.phaseCompression,
+          captureUrgency,
+        ),
       );
     }
 
@@ -1062,14 +1467,22 @@ export function CharacterCtrlrActiveRagdollPlayer({
       const desiredSwingForwardOffset =
         baseSwingForwardOffset
         + MathUtils.clamp(
-          captureForwardError * MathUtils.lerp(0.35, 0.65, gaitEffort),
+          captureForwardError * MathUtils.lerp(
+            gaitConfig.support.captureFeedback.swingForward[0],
+            gaitConfig.support.captureFeedback.swingForward[1],
+            gaitEffort,
+          ),
           -0.12,
           0.26,
         );
       const desiredSwingLateralOffset =
         baseSwingLateralOffset
         + MathUtils.clamp(
-          captureLateralError * MathUtils.lerp(0.22, 0.42, gaitEffort),
+          captureLateralError * MathUtils.lerp(
+            gaitConfig.support.captureFeedback.swingLateral[0],
+            gaitConfig.support.captureFeedback.swingLateral[1],
+            gaitEffort,
+          ),
           -0.12,
           0.12,
         );
@@ -1077,14 +1490,30 @@ export function CharacterCtrlrActiveRagdollPlayer({
         supportCenter.y + stepHeightTarget * clearanceProfile;
       const swingPlacementStrength =
         supportStateAfterJump === "double"
-          ? MathUtils.lerp(4.8, 7.4, gaitEffort)
-            : MathUtils.lerp(3.8, 5.8, gaitEffort)
-              + captureUrgency * 1.2;
-      const swingDrive = MathUtils.lerp(0.38, 0.62, gaitEffort);
+          ? MathUtils.lerp(
+              gaitConfig.swing.placement.double[0],
+              gaitConfig.swing.placement.double[1],
+              gaitEffort,
+            )
+          : MathUtils.lerp(
+              gaitConfig.swing.placement.single[0],
+              gaitConfig.swing.placement.single[1],
+              gaitEffort,
+            )
+            + captureUrgency * 1.2;
+      const swingDrive = MathUtils.lerp(
+        gaitConfig.swing.drive[0],
+        gaitConfig.swing.drive[1],
+        gaitEffort,
+      );
       const swingHeightError = desiredSwingHeight - swingFootPosition.y;
       const swingHeightDrive = MathUtils.clamp(
         (
-          swingHeightError * MathUtils.lerp(12, 18, gaitEffort)
+          swingHeightError * MathUtils.lerp(
+            gaitConfig.swing.heightDrive[0],
+            gaitConfig.swing.heightDrive[1],
+            gaitEffort,
+          )
           - swingVelocity.y * 1.9
         ) * swingMass * swingBlend,
         0,
