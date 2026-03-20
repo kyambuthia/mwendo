@@ -54,6 +54,24 @@ const tempFootPosition = new Vector3();
 
 type SupportSide = "left" | "right";
 
+type PhaseLimbPoseTargets = {
+  hip: number;
+  knee: number;
+  ankle: number;
+  shoulder: number;
+  elbow: number;
+  wrist: number;
+};
+
+type PhasePoseTargets = {
+  pelvisPitch: number;
+  pelvisRoll: number;
+  chestPitch: number;
+  chestRoll: number;
+  left: PhaseLimbPoseTargets;
+  right: PhaseLimbPoseTargets;
+};
+
 export type CharacterCtrlrActiveRagdollPlayerProps = {
   position?: CharacterCtrlrVec3;
   controls?: "keyboard" | "none";
@@ -180,6 +198,116 @@ function deriveBalanceState(
   );
 
   return supportError > 0.22 ? "recovering" : "balanced";
+}
+
+function buildBaseLimbPoseTargets(
+  grounded: boolean,
+  crouchAmount: number,
+) {
+  const hip = grounded ? MathUtils.lerp(0.02, -0.22, crouchAmount) : -0.08;
+  const knee = MathUtils.lerp(-0.08, -0.68, crouchAmount);
+  const ankle = MathUtils.lerp(0.08, -0.08, crouchAmount);
+  const shoulder = grounded ? MathUtils.lerp(0.1, 0.2, crouchAmount) : 0.16;
+  const elbow = grounded ? MathUtils.lerp(-0.34, -0.48, crouchAmount) : -0.42;
+  const wrist = grounded ? 0 : -0.05;
+
+  return { hip, knee, ankle, shoulder, elbow, wrist };
+}
+
+function derivePhasePoseTargets(params: {
+  gaitPhase: CharacterCtrlrGaitPhase;
+  gaitPhaseValue: number;
+  gaitEffort: number;
+  crouchAmount: number;
+  grounded: boolean;
+}): PhasePoseTargets {
+  const {
+    gaitPhase,
+    gaitPhaseValue,
+    gaitEffort,
+    crouchAmount,
+    grounded,
+  } = params;
+  const base = buildBaseLimbPoseTargets(grounded, crouchAmount);
+  const targets: PhasePoseTargets = {
+    pelvisPitch: grounded
+      ? MathUtils.lerp(-0.01, -0.08, crouchAmount)
+      : -0.06,
+    pelvisRoll: 0,
+    chestPitch: grounded
+      ? MathUtils.lerp(0.03, 0.14, crouchAmount)
+      : 0.08,
+    chestRoll: 0,
+    left: { ...base },
+    right: { ...base },
+  };
+
+  if (!grounded || gaitPhase === "airborne") {
+    targets.left.hip = -0.12;
+    targets.right.hip = -0.12;
+    targets.left.knee = -0.52;
+    targets.right.knee = -0.52;
+    targets.left.ankle = -0.12;
+    targets.right.ankle = -0.12;
+    targets.left.shoulder = 0.22;
+    targets.right.shoulder = 0.22;
+    return targets;
+  }
+
+  if (gaitPhase === "idle") {
+    return targets;
+  }
+
+  if (gaitPhase === "double-support") {
+    const supportCompression = MathUtils.lerp(0.04, 0.14, gaitEffort);
+    const armCounter = MathUtils.lerp(0.04, 0.12, gaitEffort)
+      * Math.sin(gaitPhaseValue * Math.PI);
+    targets.pelvisPitch -= supportCompression * 0.45;
+    targets.chestPitch += supportCompression * 0.3;
+    targets.left.hip -= supportCompression;
+    targets.right.hip -= supportCompression;
+    targets.left.knee -= supportCompression * 0.55;
+    targets.right.knee -= supportCompression * 0.55;
+    targets.left.ankle += supportCompression * 0.4;
+    targets.right.ankle += supportCompression * 0.4;
+    targets.left.shoulder += armCounter;
+    targets.right.shoulder -= armCounter;
+    targets.left.elbow += armCounter * 0.35;
+    targets.right.elbow -= armCounter * 0.35;
+    return targets;
+  }
+
+  const stanceSide: SupportSide =
+    gaitPhase === "left-stance" ? "left" : "right";
+  const swingSide: SupportSide = stanceSide === "left" ? "right" : "left";
+  const swingLift = Math.sin(gaitPhaseValue * Math.PI);
+  const swingReach = MathUtils.lerp(-0.12, 0.34, gaitPhaseValue) * gaitEffort;
+  const stanceDrive = MathUtils.lerp(0.08, 0.18, gaitEffort);
+  const pelvisLean = MathUtils.lerp(0.03, 0.11, gaitEffort);
+  const pelvisRoll = (stanceSide === "left" ? -1 : 1)
+    * MathUtils.lerp(0.03, 0.09, gaitEffort);
+  const shoulderDrive = MathUtils.lerp(0.16, 0.4, gaitEffort);
+  const elbowDrive = MathUtils.lerp(0.04, 0.18, gaitEffort) * swingLift;
+
+  targets.pelvisPitch -= pelvisLean;
+  targets.pelvisRoll = pelvisRoll;
+  targets.chestPitch += pelvisLean * 0.7;
+  targets.chestRoll = -pelvisRoll * 0.6;
+
+  targets[stanceSide].hip -= stanceDrive;
+  targets[stanceSide].knee -= stanceDrive * 0.5;
+  targets[stanceSide].ankle += stanceDrive * 0.42;
+
+  targets[swingSide].hip += swingReach;
+  targets[swingSide].knee -= MathUtils.lerp(0.18, 0.48, gaitEffort) * swingLift;
+  targets[swingSide].ankle -= MathUtils.lerp(0.08, 0.22, gaitEffort) * swingLift;
+
+  targets[stanceSide].shoulder += shoulderDrive;
+  targets[swingSide].shoulder -= shoulderDrive;
+  targets[stanceSide].elbow += elbowDrive * 0.7;
+  targets[swingSide].elbow -= elbowDrive;
+
+  return targets;
 }
 
 type GaitState = {
@@ -554,12 +682,39 @@ export function CharacterCtrlrActiveRagdollPlayer({
     } else {
       gaitState.phaseDuration = deriveGaitPhaseDuration(gaitState.phase, gaitEffort);
     }
+    const gaitPhaseValue = gaitState.phaseDuration > 0
+      ? Math.min(1, gaitState.phaseElapsed / gaitState.phaseDuration)
+      : 0;
+    const rootPosition = pelvis.translation();
+    const chestPosition = chest.translation();
+    const predictedVelocityY = jumpTriggered
+      ? currentVelocity.y + jumpImpulse
+      : currentVelocity.y;
+    const groundedAfterControl = groundedRef.current;
+    const nextMovementMode: CharacterCtrlrMovementMode = groundedAfterControl
+      ? locomotionMode
+      : predictedVelocityY > 0.35
+        ? "jump"
+        : "fall";
+    const facing = MathUtils.damp(
+      playerFacing,
+      targetFacing,
+      groundedAfterControl ? 10 : 4,
+      delta,
+    );
+    const phasePoseTargets = derivePhasePoseTargets({
+      gaitPhase: gaitState.phase,
+      gaitPhaseValue,
+      gaitEffort,
+      crouchAmount,
+      grounded: groundedAfterControl,
+    });
 
     pelvis.applyTorqueImpulse(
       {
         x: MathUtils.clamp(
           (
-            -pelvisEuler.x * uprightTorque
+            (phasePoseTargets.pelvisPitch - pelvisEuler.x) * uprightTorque
             - pelvisAngularVelocity.x * balanceDamping
           ) * pelvisTorqueScale * delta,
           -0.45,
@@ -575,7 +730,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
         ),
         z: MathUtils.clamp(
           (
-            -pelvisEuler.z * uprightTorque
+            (phasePoseTargets.pelvisRoll - pelvisEuler.z) * uprightTorque
             - pelvisAngularVelocity.z * balanceDamping
           ) * pelvisTorqueScale * delta,
           -0.45,
@@ -600,7 +755,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
       {
         x: MathUtils.clamp(
           (
-            -chestEuler.x * uprightTorque * 0.84
+            (phasePoseTargets.chestPitch - chestEuler.x) * uprightTorque * 0.84
             - chestAngularVelocity.x * balanceDamping
           ) * pelvisTorqueScale * delta,
           -0.32,
@@ -616,7 +771,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
         ),
         z: MathUtils.clamp(
           (
-            -chestEuler.z * uprightTorque * 0.84
+            (phasePoseTargets.chestRoll - chestEuler.z) * uprightTorque * 0.84
             - chestAngularVelocity.z * balanceDamping
           ) * pelvisTorqueScale * delta,
           -0.32,
@@ -642,24 +797,6 @@ export function CharacterCtrlrActiveRagdollPlayer({
         : plannedSupportSide === "right"
           ? "left"
           : null;
-
-    const rootPosition = pelvis.translation();
-    const chestPosition = chest.translation();
-    const predictedVelocityY = jumpTriggered
-      ? currentVelocity.y + jumpImpulse
-      : currentVelocity.y;
-    const groundedAfterControl = groundedRef.current;
-    const nextMovementMode: CharacterCtrlrMovementMode = groundedAfterControl
-      ? locomotionMode
-      : predictedVelocityY > 0.35
-        ? "jump"
-        : "fall";
-    const facing = MathUtils.damp(
-      playerFacing,
-      targetFacing,
-      groundedAfterControl ? 10 : 4,
-      delta,
-    );
 
     facingRight.set(Math.cos(facing), 0, -Math.sin(facing));
     facingForward.set(Math.sin(facing), 0, Math.cos(facing));
@@ -819,149 +956,75 @@ export function CharacterCtrlrActiveRagdollPlayer({
       );
     }
 
-    const idleKneeTarget = MathUtils.lerp(-0.08, -0.68, crouchAmount);
-    const stanceKneeTarget = idleKneeTarget - gaitEffort * 0.08;
-    const swingKneeTarget = groundedAfterControl
-      ? idleKneeTarget - MathUtils.lerp(0.2, 0.52, gaitEffort)
-      : -0.52;
-    const idleAnkleTarget = MathUtils.lerp(0.08, -0.08, crouchAmount);
-    const stanceAnkleTarget = groundedAfterControl ? idleAnkleTarget + gaitEffort * 0.08 : -0.04;
-    const swingAnkleTarget = groundedAfterControl
-      ? idleAnkleTarget - MathUtils.lerp(0.1, 0.24, gaitEffort)
-      : -0.12;
-    const stride = Math.sin(gaitPhaseRef.current);
-    const hipBaseTarget = groundedAfterControl
-      ? MathUtils.lerp(0.02, -0.22, crouchAmount)
-      : -0.08;
-    const hipSwing = groundedAfterControl && hasMovementInput
-      ? stride * MathUtils.lerp(0.18, 0.5, gaitEffort)
-      : 0;
-    const shoulderBaseTarget = groundedAfterControl
-      ? MathUtils.lerp(0.1, 0.2, crouchAmount)
-      : 0.16;
-    const shoulderSwing = groundedAfterControl && hasMovementInput
-      ? stride * MathUtils.lerp(0.18, 0.38, gaitEffort)
-      : 0;
-    const elbowSwing = stride * 0.14 * gaitEffort;
-    const elbowBaseTarget = groundedAfterControl
-      ? MathUtils.lerp(-0.34, -0.48, crouchAmount)
-      : -0.42;
-    const wristTarget = groundedAfterControl ? 0 : -0.05;
-    const leftHipTarget = MathUtils.clamp(
-      hipBaseTarget - hipSwing - airborneAmount * 0.04,
-      -0.9,
-      0.7,
-    );
-    const rightHipTarget = MathUtils.clamp(
-      hipBaseTarget + hipSwing - airborneAmount * 0.04,
-      -0.9,
-      0.7,
-    );
-    const leftShoulderTarget = MathUtils.clamp(
-      shoulderBaseTarget + shoulderSwing,
-      -1.1,
-      0.9,
-    );
-    const rightShoulderTarget = MathUtils.clamp(
-      shoulderBaseTarget - shoulderSwing,
-      -1.1,
-      0.9,
-    );
-
-    const leftKneeTarget =
-      swingSide === "left"
-        ? swingKneeTarget
-        : plannedSupportSide === "left"
-          ? stanceKneeTarget
-          : idleKneeTarget - airborneAmount * 0.16;
-    const rightKneeTarget =
-      swingSide === "right"
-        ? swingKneeTarget
-        : plannedSupportSide === "right"
-          ? stanceKneeTarget
-          : idleKneeTarget - airborneAmount * 0.16;
-    const leftAnkleTarget =
-      swingSide === "left"
-        ? swingAnkleTarget
-        : plannedSupportSide === "left"
-          ? stanceAnkleTarget
-          : idleAnkleTarget;
-    const rightAnkleTarget =
-      swingSide === "right"
-        ? swingAnkleTarget
-        : plannedSupportSide === "right"
-          ? stanceAnkleTarget
-          : idleAnkleTarget;
-
     driveJointToPosition(
       jointRefs.hipLeft.current,
-      leftHipTarget,
+      MathUtils.clamp(phasePoseTargets.left.hip - airborneAmount * 0.04, -0.9, 0.7),
       groundedAfterControl ? 20 : 11,
       groundedAfterControl ? 4.4 : 2.8,
     );
     driveJointToPosition(
       jointRefs.hipRight.current,
-      rightHipTarget,
+      MathUtils.clamp(phasePoseTargets.right.hip - airborneAmount * 0.04, -0.9, 0.7),
       groundedAfterControl ? 20 : 11,
       groundedAfterControl ? 4.4 : 2.8,
     );
     driveJointToPosition(
       jointRefs.shoulderLeft.current,
-      leftShoulderTarget,
+      MathUtils.clamp(phasePoseTargets.left.shoulder, -1.1, 0.9),
       8.4,
       2.2,
     );
     driveJointToPosition(
       jointRefs.shoulderRight.current,
-      rightShoulderTarget,
+      MathUtils.clamp(phasePoseTargets.right.shoulder, -1.1, 0.9),
       8.4,
       2.2,
     );
     driveJointToPosition(
       jointRefs.kneeLeft.current,
-      leftKneeTarget,
+      phasePoseTargets.left.knee,
       groundedAfterControl ? 22 : 14,
       groundedAfterControl ? 4.2 : 3,
     );
     driveJointToPosition(
       jointRefs.kneeRight.current,
-      rightKneeTarget,
+      phasePoseTargets.right.knee,
       groundedAfterControl ? 22 : 14,
       groundedAfterControl ? 4.2 : 3,
     );
     driveJointToPosition(
       jointRefs.ankleLeft.current,
-      leftAnkleTarget,
+      phasePoseTargets.left.ankle,
       groundedAfterControl ? 15 : 9,
       groundedAfterControl ? 3.1 : 2.3,
     );
     driveJointToPosition(
       jointRefs.ankleRight.current,
-      rightAnkleTarget,
+      phasePoseTargets.right.ankle,
       groundedAfterControl ? 15 : 9,
       groundedAfterControl ? 3.1 : 2.3,
     );
     driveJointToPosition(
       jointRefs.elbowLeft.current,
-      elbowBaseTarget + elbowSwing,
+      phasePoseTargets.left.elbow,
       5.2,
       1.8,
     );
     driveJointToPosition(
       jointRefs.elbowRight.current,
-      elbowBaseTarget - elbowSwing,
+      phasePoseTargets.right.elbow,
       5.2,
       1.8,
     );
     driveJointToPosition(
       jointRefs.wristLeft.current,
-      wristTarget,
+      phasePoseTargets.left.wrist,
       3.8,
       1.4,
     );
     driveJointToPosition(
       jointRefs.wristRight.current,
-      wristTarget,
+      phasePoseTargets.right.wrist,
       3.8,
       1.4,
     );
@@ -1052,9 +1115,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
       swingSide,
       grounded: groundedAfterControl,
       hasMovementInput,
-      gaitPhaseValue: gaitState.phaseDuration > 0
-        ? Math.min(1, gaitState.phaseElapsed / gaitState.phaseDuration)
-        : 0,
+      gaitPhaseValue,
       gaitPhaseElapsed: gaitState.phaseElapsed,
       gaitPhaseDuration: gaitState.phaseDuration,
       gaitTransitionCount: gaitState.transitionCount,
