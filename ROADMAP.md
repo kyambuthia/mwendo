@@ -210,11 +210,12 @@ Exit criteria:
 
 Current state:
 
-- stand-assist posture targets, foot planting, support-height regulation, grounded-state hysteresis, delayed jump-contact clearing, and downward Rapier ground probes are implemented
+- stand-assist posture targets, dynamic foot planting, support-height regulation, grounded-state hysteresis, delayed jump-contact clearing, and downward Rapier ground probes are implemented
+- turn-in-place now has a dedicated standing-path heading controller instead of borrowing translational gait authority
 - the controller is still not reliably meeting the exit criteria:
-  - the active ragdoll can still kneel, collapse, or oscillate after spawn
-  - first-step walking is still blocked by standing instability
-  - turn-in-place is not yet a trustworthy product behavior
+  - long-horizon stability and low-frame-rate/mobile robustness still need repeatable scenario verification
+  - first-step walking is improved structurally but still depends on gait and step-placement tuning
+  - turn-in-place is better isolated, but it is not yet signed off as product-stable
 
 ## Phase 3: Forward walking and running
 
@@ -265,13 +266,14 @@ Exit criteria:
 Current state:
 
 - the controller already contains:
-  - an explicit gait FSM
+  - an explicit deterministic gait FSM
   - phase-based pose targets
-  - COM and capture-point feedback
+  - COM and capture-point measurement helpers
   - explicit step length, width, and clearance targets
+  - swing-foot planning with reachable landing clamps
   - locomotion family configs
   - recovery and deterministic gait re-entry
-- this phase is not functionally complete because the active ragdoll still cannot reliably stand, start walking, or sustain stable forward locomotion
+- this phase is not functionally complete because the active ragdoll still cannot yet be claimed reliable for walk start, sustained gait, or walk/run transitions across validation scenarios
 - Mixamo-based target motion is now wired as a hidden reference rig, but it is not yet enough to guarantee physical walking stability
 
 ## Phase 4: Backpedal, strafe, and curved locomotion

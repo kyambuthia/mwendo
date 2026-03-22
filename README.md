@@ -224,6 +224,23 @@ Production note:
   - pelvis support is solved relative to the foot sole plane
   - idle and low-speed double-support use a stand-assist path
   - feet are planted and leveled while standing so the rig can hold posture before stepping
+- the active-ragdoll controller internals are now split into explicit library subsystems for:
+  - contact tracking and support confirmation
+  - gait progression
+  - standing control
+  - COM / capture-point measurement
+  - step planning
+  - recovery classification
+  - debug-state publication
+- demo validation scenarios can be run with `?scenario=` query params such as:
+  - `spawn_idle_stability`
+  - `turn_in_place_stability`
+  - `walk_start_from_rest`
+  - `steady_forward_walk`
+  - `walk_run_walk_transition`
+  - `mild_push_recovery`
+  - `no_persistent_foot_chatter`
+  - `no_persistent_leg_scissoring`
 - new locomotion, balance, and recovery work should land in the library runtime first and only then be exposed through the demo
 
 `CharacterCtrlrCameraRig` supports:

@@ -6,6 +6,10 @@ import { KeyRibbon } from "./components/KeyRibbon";
 import { Lights } from "./components/Lights";
 import { useDemoTouchInput } from "./components/useDemoTouchInput";
 import {
+  DemoValidationPusher,
+  useDemoValidationScenario,
+} from "./components/useDemoValidationScenario";
+import {
   DEMO_PHYSICS_STEP,
   useDemoPhysicsDebugControls,
 } from "./components/useDemoPhysicsDebugControls";
@@ -82,6 +86,9 @@ function DemoPhysicsStepper({
 function DemoScene() {
   const touchInputRef = useDemoTouchInput();
   const physicsDebug = useDemoPhysicsDebugControls();
+  const validationScenario = useDemoValidationScenario();
+  const activeInputRef =
+    validationScenario.scenario ? validationScenario.inputRef : touchInputRef;
 
   return (
     <>
@@ -111,7 +118,7 @@ function DemoScene() {
               <CharacterCtrlrActiveRagdollPlayer
                 controls="keyboard"
                 debug
-                inputRef={touchInputRef}
+                inputRef={activeInputRef}
                 mixamoSource={DEMO_MIXAMO_SOURCE}
                 position={DEMO_PLAYER_POSITION}
               />
@@ -119,13 +126,17 @@ function DemoScene() {
               <CharacterCtrlrPlayer
                 controls="keyboard"
                 debug
-                inputRef={touchInputRef}
+                inputRef={activeInputRef}
                 manualStepCount={physicsDebug.manualStepCount}
                 paused={physicsDebug.paused}
                 position={DEMO_PLAYER_POSITION}
                 timeScale={physicsDebug.timeScale}
               />
             )}
+            <DemoValidationPusher
+              elapsedRef={validationScenario.elapsedRef}
+              scenario={validationScenario.scenario}
+            />
             <CharacterCtrlrRagdollDummy
               debug
               manualStepCount={physicsDebug.manualStepCount}
