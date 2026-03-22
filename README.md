@@ -8,6 +8,20 @@ This does not work yet.
 
 The active-ragdoll controller is still unstable and the walking controller is not solved. If you know how to make this character stand, step, and walk reliably, please help.
 
+## Current demo capture
+
+Capsule baseline:
+
+![Capsule baseline](./docs/media/capsule-baseline.png)
+
+Active ragdoll WIP:
+
+![Active ragdoll WIP](./docs/media/active-ragdoll-wip.png)
+
+Current walk attempt:
+
+![Active ragdoll walk attempt](./docs/media/active-ragdoll-walk-attempt.gif)
+
 Package name:
 
 ```bash
