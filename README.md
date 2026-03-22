@@ -72,6 +72,7 @@ Known problems:
 - the active ragdoll can fail to settle into a reliable neutral stand and may kneel, collapse, or oscillate after spawn
 - first-step and continuous walking behavior are not yet dependable, especially when balance recovery, support switching, and leg drive interact
 - turning and prolonged running can still destabilize the torso and push the controller into stumble/fall recovery
+- the new scripted validation scenarios are useful for repeatability, but they are not passing yet; recent headless probes still reported the ragdoll in `fall/airborne` with lost support instead of a stable stand or walk
 - ground detection has been improved with hysteresis and downward ground probes, but support/grounded transitions are still under active tuning
 - the Mixamo-driven target path is useful for motion reference, but it does not yet guarantee stable physical walking
 - the capsule controller remains the more reliable baseline; the active ragdoll is the current research path
@@ -241,6 +242,9 @@ Production note:
   - `mild_push_recovery`
   - `no_persistent_foot_chatter`
   - `no_persistent_leg_scissoring`
+- those scenarios are currently a debugging harness, not a success suite:
+  - they exist to reproduce controller failures consistently
+  - they should not be read as evidence that standing or walking is solved
 - new locomotion, balance, and recovery work should land in the library runtime first and only then be exposed through the demo
 
 `CharacterCtrlrCameraRig` supports:

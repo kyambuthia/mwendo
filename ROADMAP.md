@@ -212,8 +212,10 @@ Current state:
 
 - stand-assist posture targets, dynamic foot planting, support-height regulation, grounded-state hysteresis, delayed jump-contact clearing, and downward Rapier ground probes are implemented
 - turn-in-place now has a dedicated standing-path heading controller instead of borrowing translational gait authority
+- repeatable scenario hooks now exist in the demo for idle, turn-in-place, walk start, walk/run transitions, push recovery, foot chatter, and leg-scissoring checks
 - the controller is still not reliably meeting the exit criteria:
   - long-horizon stability and low-frame-rate/mobile robustness still need repeatable scenario verification
+  - recent scripted probes still reported `grounded: false`, `supportState: none`, and `airborne/fall` instead of a trustworthy standing baseline
   - first-step walking is improved structurally but still depends on gait and step-placement tuning
   - turn-in-place is better isolated, but it is not yet signed off as product-stable
 
@@ -273,6 +275,7 @@ Current state:
   - swing-foot planning with reachable landing clamps
   - locomotion family configs
   - recovery and deterministic gait re-entry
+- validation scenarios now exercise this phase more repeatably, but they are still exposing failure states rather than confirming success
 - this phase is not functionally complete because the active ragdoll still cannot yet be claimed reliable for walk start, sustained gait, or walk/run transitions across validation scenarios
 - Mixamo-based target motion is now wired as a hidden reference rig, but it is not yet enough to guarantee physical walking stability
 
