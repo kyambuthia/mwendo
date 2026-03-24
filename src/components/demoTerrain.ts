@@ -399,3 +399,29 @@ export function createDemoPlanetGeometry() {
     geometry,
   };
 }
+
+export const topographicMaterialOnBeforeCompile = (shader: any) => {
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <common>',
+    `#include <common>
+varying vec3 vWorldSpacePosition;`
+  ).replace(
+    '#include <begin_vertex>',
+    `#include <begin_vertex>
+vWorldSpacePosition = (modelMatrix * vec4(position, 1.0)).xyz;`
+  );
+
+  shader.fragmentShader = shader.fragmentShader.replace(
+    '#include <common>',
+    `#include <common>
+varying vec3 vWorldSpacePosition;`
+  ).replace(
+    '#include <dithering_fragment>',
+    `#include <dithering_fragment>
+float topoScale = 4.0;
+float topoDist = length(vWorldSpacePosition) * topoScale;
+float topoLine = abs(fract(topoDist - 0.5) - 0.5) / fwidth(topoDist);
+float topoWeight = 1.0 - smoothstep(0.0, 1.5, topoLine);
+gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 0.4, topoWeight * 0.8);`
+  );
+};
