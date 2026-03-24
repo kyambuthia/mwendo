@@ -1,20 +1,19 @@
 import { Canvas } from "@react-three/fiber";
 import { Physics, useRapier } from "@react-three/rapier";
 import { Suspense, useEffect, useRef } from "react";
+import { Vector3 } from "three";
 import { FlatArena } from "./components/FlatArena";
 import { KeyRibbon } from "./components/KeyRibbon";
 import { Lights } from "./components/Lights";
 import { DemoBoxmanPlayer } from "./components/DemoBoxmanPlayer";
+import { DemoPlanetCamera } from "./components/DemoPlanetCamera";
 import { TerrainArena } from "./components/TerrainArena";
 import {
-  DEMO_TERRAIN_CAPSULE_SPAWN_CLEARANCE,
-  DEMO_TERRAIN_DUMMY_X,
-  DEMO_TERRAIN_DUMMY_Z,
-  DEMO_TERRAIN_DUMMY_SPAWN_CLEARANCE,
-  DEMO_TERRAIN_RAGDOLL_SPAWN_CLEARANCE,
-  DEMO_TERRAIN_SPAWN_X,
-  DEMO_TERRAIN_SPAWN_Z,
-  getDemoTerrainSpawnPosition,
+  DEMO_PLANET_DUMMY_DIRECTION,
+  DEMO_PLANET_DUMMY_SPAWN_CLEARANCE,
+  DEMO_PLANET_PLAYER_SPAWN_CLEARANCE,
+  DEMO_PLANET_SPAWN_DIRECTION,
+  getDemoPlanetSpawnPosition,
 } from "./components/demoTerrain";
 import { useDemoTouchInput } from "./components/useDemoTouchInput";
 import {
@@ -27,7 +26,6 @@ import {
 } from "./components/useDemoPhysicsDebugControls";
 import {
   CharacterCtrlrActiveRagdollPlayer,
-  CharacterCtrlrCameraRig,
   type CharacterCtrlrMixamoMotionSource,
   CharacterCtrlrProvider,
   CharacterCtrlrRagdollDummy,
@@ -42,11 +40,13 @@ const DEMO_DEBUG =
 const DEMO_ARENA_MODE =
   new URLSearchParams(window.location.search).get("arena") === "flat"
     ? "flat"
-    : "terrain";
+    : "planet";
 const DEMO_MOTION_MODE =
   new URLSearchParams(window.location.search).get("motion") === "mixamo"
     ? "mixamo"
     : "procedural";
+const USE_PLANET_DEMO =
+  DEMO_PLAYER_MODE === "boxman" && DEMO_ARENA_MODE === "planet";
 const DEMO_MIXAMO_SOURCE: CharacterCtrlrMixamoMotionSource | undefined =
   DEMO_MOTION_MODE === "mixamo"
     ? {
@@ -62,21 +62,17 @@ const DEMO_MIXAMO_SOURCE: CharacterCtrlrMixamoMotionSource | undefined =
       }
     : undefined;
 const DEMO_PLAYER_POSITION: [number, number, number] =
-  DEMO_ARENA_MODE === "terrain"
-    ? getDemoTerrainSpawnPosition(
-        DEMO_TERRAIN_SPAWN_X,
-        DEMO_TERRAIN_SPAWN_Z,
-        DEMO_PLAYER_MODE === "ragdoll"
-          ? DEMO_TERRAIN_RAGDOLL_SPAWN_CLEARANCE
-          : DEMO_TERRAIN_CAPSULE_SPAWN_CLEARANCE,
+  USE_PLANET_DEMO
+    ? getDemoPlanetSpawnPosition(
+        DEMO_PLANET_SPAWN_DIRECTION,
+        DEMO_PLANET_PLAYER_SPAWN_CLEARANCE,
       )
     : [0, 2.02, 6];
 const DEMO_DUMMY_POSITION: [number, number, number] =
-  DEMO_ARENA_MODE === "terrain"
-    ? getDemoTerrainSpawnPosition(
-        DEMO_TERRAIN_DUMMY_X,
-        DEMO_TERRAIN_DUMMY_Z,
-        DEMO_TERRAIN_DUMMY_SPAWN_CLEARANCE,
+  USE_PLANET_DEMO
+    ? getDemoPlanetSpawnPosition(
+        DEMO_PLANET_DUMMY_DIRECTION,
+        DEMO_PLANET_DUMMY_SPAWN_CLEARANCE,
       )
     : [-4, 5.5, -6];
 const SHOW_RAGDOLL_DUMMY =
@@ -127,6 +123,9 @@ function DemoScene() {
   const validationScenario = useDemoValidationScenario();
   const activeInputRef =
     validationScenario.scenario ? validationScenario.inputRef : touchInputRef;
+  const playerPositionRef = useRef(new Vector3(...DEMO_PLAYER_POSITION));
+  const playerUpRef = useRef(new Vector3(0, 1, 0));
+  const cameraViewRef = useRef(new Vector3(0, 0, 1));
 
   return (
     <>
@@ -140,19 +139,36 @@ function DemoScene() {
         <fog attach="fog" args={["#d9e7d2", 45, 180]} />
         <Suspense fallback={null}>
           <Lights />
-          <Physics
-            gravity={[0, -9.81, 0]}
-            paused={physicsDebug.paused}
-            timeStep={DEMO_PHYSICS_STEP * physicsDebug.timeScale}
-          >
-            <DemoPhysicsStepper
-              onStep={physicsDebug.acknowledgeStep}
+          {USE_PLANET_DEMO ? (
+            <>
+              <TerrainArena />
+              <DemoBoxmanPlayer
+                inputRef={activeInputRef}
+                position={DEMO_PLAYER_POSITION}
+                positionRef={playerPositionRef}
+                upRef={playerUpRef}
+                viewVectorRef={cameraViewRef}
+              />
+              <DemoPlanetCamera
+                positionRef={playerPositionRef}
+                upRef={playerUpRef}
+                viewVectorRef={cameraViewRef}
+              />
+            </>
+          ) : (
+            <Physics
+              gravity={[0, -9.81, 0]}
               paused={physicsDebug.paused}
-              stepRequest={physicsDebug.stepRequest}
-              timeScale={physicsDebug.timeScale}
-            />
-            {DEMO_ARENA_MODE === "terrain" ? <TerrainArena /> : <FlatArena />}
-            {DEMO_PLAYER_MODE === "ragdoll" ? (
+              timeStep={DEMO_PHYSICS_STEP * physicsDebug.timeScale}
+            >
+              <DemoPhysicsStepper
+                onStep={physicsDebug.acknowledgeStep}
+                paused={physicsDebug.paused}
+                stepRequest={physicsDebug.stepRequest}
+                timeScale={physicsDebug.timeScale}
+              />
+              <FlatArena />
+              {DEMO_PLAYER_MODE === "ragdoll" ? (
               <CharacterCtrlrActiveRagdollPlayer
                 controls="keyboard"
                 debug={DEMO_DEBUG}
@@ -161,30 +177,23 @@ function DemoScene() {
                 position={DEMO_PLAYER_POSITION}
               />
             ) : (
-              <DemoBoxmanPlayer
-                inputRef={activeInputRef}
-                position={DEMO_PLAYER_POSITION}
+                <></>
+              )}
+              <DemoValidationPusher
+                elapsedRef={validationScenario.elapsedRef}
+                scenario={validationScenario.scenario}
               />
-            )}
-            <DemoValidationPusher
-              elapsedRef={validationScenario.elapsedRef}
-              scenario={validationScenario.scenario}
-            />
-            {SHOW_RAGDOLL_DUMMY ? (
-              <CharacterCtrlrRagdollDummy
-                debug
-                manualStepCount={physicsDebug.manualStepCount}
-                paused={physicsDebug.paused}
-                position={DEMO_DUMMY_POSITION}
-                timeScale={physicsDebug.timeScale}
-              />
-            ) : null}
-          </Physics>
-          <CharacterCtrlrCameraRig
-            focusHeight={1.35}
-            followOffset={[0, 2.2, 6.8]}
-            smoothing={10}
-          />
+              {SHOW_RAGDOLL_DUMMY ? (
+                <CharacterCtrlrRagdollDummy
+                  debug
+                  manualStepCount={physicsDebug.manualStepCount}
+                  paused={physicsDebug.paused}
+                  position={DEMO_DUMMY_POSITION}
+                  timeScale={physicsDebug.timeScale}
+                />
+              ) : null}
+            </Physics>
+          )}
         </Suspense>
       </Canvas>
     </>

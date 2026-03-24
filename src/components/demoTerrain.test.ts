@@ -1,48 +1,48 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEMO_TERRAIN_CAPSULE_SPAWN_CLEARANCE,
-  DEMO_TERRAIN_SPAWN_X,
-  DEMO_TERRAIN_SPAWN_Z,
-  getDemoTerrainSpawnPosition,
-  sampleDemoTerrainHeight,
-  sampleDemoTerrainNormal,
+  DEMO_PLANET_PLAYER_SPAWN_CLEARANCE,
+  DEMO_PLANET_RADIUS,
+  DEMO_PLANET_SPAWN_DIRECTION,
+  getDemoPlanetSpawnPosition,
+  sampleDemoPlanetHeight,
+  sampleDemoPlanetNormal,
+  sampleDemoPlanetSurface,
 } from "./demoTerrain";
 
-describe("demo terrain helpers", () => {
-  it("returns deterministic heights", () => {
-    expect(sampleDemoTerrainHeight(12.5, -8.75)).toBeCloseTo(
-      sampleDemoTerrainHeight(12.5, -8.75),
+describe("demo planet helpers", () => {
+  it("returns deterministic heights for the same direction", () => {
+    const direction: [number, number, number] = [0.35, -0.22, 0.91];
+
+    expect(sampleDemoPlanetHeight(direction)).toBeCloseTo(
+      sampleDemoPlanetHeight(direction),
       8,
     );
   });
 
-  it("keeps the default spawn shelf gentle enough for the capsule controller", () => {
-    const centerHeight = sampleDemoTerrainHeight(
-      DEMO_TERRAIN_SPAWN_X,
-      DEMO_TERRAIN_SPAWN_Z,
-    );
-    const neighborHeight = sampleDemoTerrainHeight(
-      DEMO_TERRAIN_SPAWN_X + 2,
-      DEMO_TERRAIN_SPAWN_Z - 2,
-    );
-    const fartherHeight = sampleDemoTerrainHeight(
-      DEMO_TERRAIN_SPAWN_X + 6,
-      DEMO_TERRAIN_SPAWN_Z + 3,
-    );
-    const normal = sampleDemoTerrainNormal(
-      DEMO_TERRAIN_SPAWN_X,
-      DEMO_TERRAIN_SPAWN_Z,
-    );
+  it("keeps the spawn area smooth on the planet surface", () => {
+    const centerHeight = sampleDemoPlanetHeight(DEMO_PLANET_SPAWN_DIRECTION);
+    const nearbyDirection: [number, number, number] = [0.24, 0.14, 0.96];
+    const fartherDirection: [number, number, number] = [0.3, 0.2, 0.93];
+    const nearbyHeight = sampleDemoPlanetHeight(nearbyDirection);
+    const fartherHeight = sampleDemoPlanetHeight(fartherDirection);
+    const normal = sampleDemoPlanetNormal(DEMO_PLANET_SPAWN_DIRECTION);
 
-    expect(Math.abs(centerHeight - neighborHeight)).toBeLessThan(0.05);
-    expect(Math.abs(centerHeight - fartherHeight)).toBeLessThan(0.12);
-    expect(normal.y).toBeGreaterThan(0.985);
+    expect(Math.abs(centerHeight - nearbyHeight)).toBeLessThan(0.08);
+    expect(Math.abs(centerHeight - fartherHeight)).toBeLessThan(0.18);
+    expect(normal.dot(sampleDemoPlanetSurface(DEMO_PLANET_SPAWN_DIRECTION).normal)).toBeGreaterThan(0.97);
   });
 
-  it("applies spawn clearance above the sampled terrain height", () => {
-    const clearance = DEMO_TERRAIN_CAPSULE_SPAWN_CLEARANCE;
-    const [, y] = getDemoTerrainSpawnPosition(4, 7, clearance);
+  it("applies spawn clearance above the sampled planet surface radius", () => {
+    const position = getDemoPlanetSpawnPosition(
+      DEMO_PLANET_SPAWN_DIRECTION,
+      DEMO_PLANET_PLAYER_SPAWN_CLEARANCE,
+    );
+    const distance = Math.hypot(position[0], position[1], position[2]);
+    const surface = sampleDemoPlanetSurface(DEMO_PLANET_SPAWN_DIRECTION);
 
-    expect(y - sampleDemoTerrainHeight(4, 7)).toBeCloseTo(clearance, 8);
+    expect(distance - (DEMO_PLANET_RADIUS + surface.height)).toBeCloseTo(
+      DEMO_PLANET_PLAYER_SPAWN_CLEARANCE,
+      6,
+    );
   });
 });
