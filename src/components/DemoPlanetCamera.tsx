@@ -11,8 +11,18 @@ const referenceAxisB = new Vector3(1, 0, 0);
 const localEast = new Vector3();
 const localNorth = new Vector3();
 const focus = new Vector3();
+const focusDelta = new Vector3();
+const focusPlanarDelta = new Vector3();
 const desiredPosition = new Vector3();
 const desiredViewVector = new Vector3();
+const rawFocus = new Vector3();
+const smoothedUp = new Vector3();
+const smoothedFocus = new Vector3();
+
+const CAMERA_POSITION_LAMBDA = 10;
+const CAMERA_UP_LAMBDA = 10;
+const CAMERA_FOCUS_PLANAR_LAMBDA = 14;
+const CAMERA_FOCUS_VERTICAL_LAMBDA = 6;
 
 export function DemoPlanetCamera(props: {
   positionRef: MutableRefObject<Vector3>;
@@ -23,6 +33,7 @@ export function DemoPlanetCamera(props: {
   const yawRef = useRef(Math.PI * 0.14);
   const pitchRef = useRef(-0.34);
   const radiusRef = useRef(7.4);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
     const element = gl.domElement;
@@ -67,31 +78,67 @@ export function DemoPlanetCamera(props: {
   }, [gl]);
 
   useFrame((_, dt) => {
+    const dampingDelta = Math.min(dt, 1 / 20);
     const up = props.upRef.current.clone().normalize();
+    rawFocus.copy(props.positionRef.current).addScaledVector(up, 1.1);
+
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      smoothedUp.copy(up);
+      smoothedFocus.copy(rawFocus);
+    } else {
+      smoothedUp.lerp(up, 1 - Math.exp(-CAMERA_UP_LAMBDA * dampingDelta));
+      smoothedUp.normalize();
+
+      focusDelta.copy(rawFocus).sub(smoothedFocus);
+      focusPlanarDelta.copy(focusDelta).addScaledVector(
+        smoothedUp,
+        -focusDelta.dot(smoothedUp),
+      );
+
+      smoothedFocus.addScaledVector(
+        focusPlanarDelta,
+        1 - Math.exp(-CAMERA_FOCUS_PLANAR_LAMBDA * dampingDelta),
+      );
+
+      const verticalDelta = focusDelta.dot(smoothedUp);
+      smoothedFocus.addScaledVector(
+        smoothedUp,
+        verticalDelta * (1 - Math.exp(-CAMERA_FOCUS_VERTICAL_LAMBDA * dampingDelta)),
+      );
+    }
+
+    const cameraUp = smoothedUp;
     const referenceAxis = Math.abs(up.dot(referenceAxisA)) > 0.92
       ? referenceAxisB
       : referenceAxisA;
 
-    localEast.crossVectors(referenceAxis, up).normalize();
-    localNorth.crossVectors(up, localEast).normalize();
-    focus.copy(props.positionRef.current).addScaledVector(up, 1.1);
+    localEast.crossVectors(referenceAxis, cameraUp).normalize();
+    localNorth.crossVectors(cameraUp, localEast).normalize();
+    focus.copy(smoothedFocus);
 
     const planarRadius = Math.cos(pitchRef.current) * radiusRef.current;
     desiredPosition
       .copy(localNorth)
       .multiplyScalar(Math.cos(yawRef.current) * planarRadius)
       .addScaledVector(localEast, Math.sin(yawRef.current) * planarRadius)
-      .addScaledVector(up, -Math.sin(pitchRef.current) * radiusRef.current)
+      .addScaledVector(cameraUp, -Math.sin(pitchRef.current) * radiusRef.current)
       .add(focus);
 
-    camera.up.copy(up);
-    camera.position.lerp(desiredPosition, 1 - Math.exp(-10 * Math.min(dt, 1 / 20)));
+    camera.up.copy(cameraUp);
+    camera.position.lerp(
+      desiredPosition,
+      1 - Math.exp(-CAMERA_POSITION_LAMBDA * dampingDelta),
+    );
     camera.lookAt(focus);
 
     desiredViewVector
       .copy(focus)
       .sub(camera.position)
-      .addScaledVector(up, -focus.clone().sub(camera.position).dot(up))
+      .addScaledVector(
+        cameraUp,
+        -focus.clone().sub(camera.position).dot(cameraUp),
+      )
       .normalize();
     props.viewVectorRef.current.copy(desiredViewVector);
   });

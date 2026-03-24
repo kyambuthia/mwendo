@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { BackSide, DoubleSide, Matrix4, Quaternion, Vector3 } from "three";
 import {
-  createDemoPlanetGeometry,
   DEMO_PLANET_RADIUS,
   DEMO_PLANET_PLAYER_RIDE_HEIGHT,
   DEMO_PLANET_SPAWN_DIRECTION,
@@ -12,7 +11,6 @@ import {
 const spawnDirection = new Vector3(...DEMO_PLANET_SPAWN_DIRECTION).normalize();
 
 export function TerrainArena() {
-  const planet = useMemo(() => createDemoPlanetGeometry(), []);
   const obstacles = useMemo(() => getDemoPlanetObstacles(), []);
   const spawnSurface = useMemo(
     () => sampleDemoPlanetSurface(spawnDirection),
@@ -47,15 +45,6 @@ export function TerrainArena() {
 
   return (
     <>
-      <mesh castShadow receiveShadow geometry={planet.geometry} scale={0.985}>
-        <meshStandardMaterial
-          color="#ffffff"
-          metalness={0.02}
-          roughness={0.96}
-          vertexColors
-        />
-      </mesh>
-
       <mesh position={[0, 0, 0]} scale={1.028}>
         <sphereGeometry args={[DEMO_PLANET_RADIUS, 64, 64]} />
         <meshBasicMaterial
