@@ -6,6 +6,7 @@ import { FlatArena } from "./components/FlatArena";
 import { KeyRibbon } from "./components/KeyRibbon";
 import { Lights } from "./components/Lights";
 import { DemoBoxmanPlayer } from "./components/DemoBoxmanPlayer";
+import { DemoPlanetBackdrop } from "./components/DemoPlanetBackdrop";
 import { DemoPlanetCamera } from "./components/DemoPlanetCamera";
 import { TerrainArena } from "./components/TerrainArena";
 import {
@@ -135,12 +136,15 @@ function DemoScene() {
         gl={{ antialias: true }}
         shadows
       >
-        <color attach="background" args={["#d9e7d2"]} />
-        <fog attach="fog" args={["#d9e7d2", 45, 180]} />
+        <color attach="background" args={USE_PLANET_DEMO ? ["#040812"] : ["#d9e7d2"]} />
+        {USE_PLANET_DEMO ? null : (
+          <fog attach="fog" args={["#d9e7d2", 45, 180]} />
+        )}
         <Suspense fallback={null}>
-          <Lights />
+          <Lights planetMode={USE_PLANET_DEMO} />
           {USE_PLANET_DEMO ? (
             <>
+              <DemoPlanetBackdrop />
               <TerrainArena />
               <DemoBoxmanPlayer
                 inputRef={activeInputRef}

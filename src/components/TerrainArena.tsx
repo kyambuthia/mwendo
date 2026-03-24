@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { DoubleSide, Matrix4, Quaternion, Vector3 } from "three";
+import { BackSide, DoubleSide, Matrix4, Quaternion, Vector3 } from "three";
 import {
   createDemoPlanetGeometry,
+  DEMO_PLANET_RADIUS,
   DEMO_PLANET_PLAYER_RIDE_HEIGHT,
   DEMO_PLANET_SPAWN_DIRECTION,
   sampleDemoPlanetSurface,
@@ -53,13 +54,33 @@ export function TerrainArena() {
         />
       </mesh>
 
+      <mesh position={[0, 0, 0]} scale={1.028}>
+        <sphereGeometry args={[DEMO_PLANET_RADIUS, 64, 64]} />
+        <meshBasicMaterial
+          color="#87b7ff"
+          side={BackSide}
+          transparent
+          opacity={0.18}
+        />
+      </mesh>
+
+      <mesh position={[0, 0, 0]} scale={1.04}>
+        <sphereGeometry args={[DEMO_PLANET_RADIUS, 64, 64]} />
+        <meshBasicMaterial
+          color="#6ec5ff"
+          side={BackSide}
+          transparent
+          opacity={0.05}
+        />
+      </mesh>
+
       <mesh position={[0, 0, 0]}>
         <sphereGeometry args={[160, 40, 40]} />
         <meshBasicMaterial
-          color="#c8d8ea"
+          color="#8db5ff"
           side={DoubleSide}
           transparent
-          opacity={0.06}
+          opacity={0.045}
         />
       </mesh>
 
