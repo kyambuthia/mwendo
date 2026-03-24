@@ -10,6 +10,7 @@ import {
   DEMO_PLANET_RADIUS,
   sampleDemoPlanetHeight,
   writeDemoPlanetColorFromHeight,
+  topographicMaterialOnBeforeCompile,
 } from "./demoTerrain";
 
 const TILE_SIZE = 8;
@@ -209,6 +210,7 @@ export function DemoPlanetDetailPatch(props: {
             vertexColors
             metalness={0.02}
             roughness={0.96}
+            onBeforeCompile={topographicMaterialOnBeforeCompile}
           />
         </mesh>
       ))}
