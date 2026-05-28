@@ -3,6 +3,7 @@ import { Physics, useRapier } from "@react-three/rapier";
 import { Suspense, useEffect, useRef } from "react";
 import { Vector3 } from "three";
 import { FlatArena } from "./components/FlatArena";
+import { JoltMinimalTest } from "./components/JoltMinimalTest";
 import { KeyRibbon } from "./components/KeyRibbon";
 import { Lights } from "./components/Lights";
 import { DemoBoxmanPlayer } from "./components/DemoBoxmanPlayer";
@@ -47,6 +48,8 @@ const DEMO_MOTION_MODE =
   new URLSearchParams(window.location.search).get("motion") === "mixamo"
     ? "mixamo"
     : "procedural";
+const DEMO_JOLT_TEST =
+  new URLSearchParams(window.location.search).get("mode") === "jolt-test";
 const USE_PLANET_DEMO =
   DEMO_PLAYER_MODE === "boxman" && DEMO_ARENA_MODE === "planet";
 const DEMO_MIXAMO_SOURCE: CharacterCtrlrMixamoMotionSource | undefined =
@@ -120,6 +123,21 @@ function DemoPhysicsStepper({
 }
 
 function DemoScene() {
+  if (DEMO_JOLT_TEST) {
+    return (
+      <Canvas
+        camera={{ fov: 42, near: 0.1, far: 250, position: [0, 3.5, 8] }}
+        gl={{ antialias: true }}
+        shadows
+      >
+        <color attach="background" args={["#0a1a2a"]} />
+        <Suspense fallback={null}>
+          <JoltMinimalTest />
+        </Suspense>
+      </Canvas>
+    );
+  }
+
   const touchInputRef = useDemoTouchInput();
   const physicsDebug = useDemoPhysicsDebugControls();
   const validationScenario = useDemoValidationScenario();
