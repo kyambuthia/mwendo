@@ -61,14 +61,14 @@ export function deriveRecoverySignals(params: {
     && Math.abs(captureLateralError) < 0.18;
   const standBootstrapStable =
     groundedAfterControl
-    && supportState === "double"
-    && supportHeight > 0.94
-    && pelvisTilt < 0.24
-    && chestTilt < 0.32
-    && Math.abs(supportLateralError) < 0.12
-    && Math.abs(supportForwardError) < 0.16
-    && Math.abs(captureForwardError) < 0.16
-    && Math.abs(captureLateralError) < 0.12;
+    && supportState !== "none"
+    && supportHeight > 0.88
+    && pelvisTilt < 0.28
+    && chestTilt < 0.36
+    && Math.abs(supportLateralError) < 0.14
+    && Math.abs(supportForwardError) < 0.18
+    && Math.abs(captureForwardError) < 0.18
+    && Math.abs(captureLateralError) < 0.14;
 
   return {
     severeInstability,
@@ -114,6 +114,8 @@ export function advanceRecoveryState(params: {
       recoveryState,
       standBootstrapStable ? "stable" : "landing",
     );
+  } else if (spawnSettleActive && severeInstability) {
+    transitionRecoveryState(recoveryState, "landing");
   } else if (severeInstability) {
     transitionRecoveryState(recoveryState, "fallen");
   } else if (recoveryState.mode === "fallen") {

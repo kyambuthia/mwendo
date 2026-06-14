@@ -437,6 +437,30 @@ Exit criteria:
 4. Revisit Phase 5 and Phase 6 only after standing and forward gait are trustworthy enough that recovery is not masking a broken base controller.
 5. Defer new locomotion families until the forward active-ragdoll path is genuinely shippable.
 
+## June 2026 fix sprint (in progress)
+
+This sprint targets the current engineering blockers before more gait expansion.
+
+### Completed in this sprint
+
+- restored a clean npm dependency tree and removed the broken pnpm/npm `@types/three` split that blocked `typecheck` and `build`
+- fixed the Jolt research import path and added the missing `jolt-physics` dev dependency
+- extracted an explicit bootstrap subsystem in `src/lib/components/active-ragdoll/bootstrap.ts`
+- changed bootstrap timing from hard reset to decay so brief instability no longer zeroes all settle progress
+- trusted probed foot support during bootstrap when contact callbacks are still unreliable
+- suppressed locomotion authority during bootstrap so standing is not competing with gait startup
+- prevented bootstrap instability from routing directly into `fallen`
+- boosted lower-body motor stiffness during bootstrap settle
+- added unit tests for bootstrap, standing, and recovery bootstrap behavior
+
+### Next after bootstrap lands
+
+1. verify `spawn_idle_stability` and `turn_in_place_stability` scenarios over LAN with debug enabled
+2. add a headless scenario probe script that records snapshot failures into a JSON artifact
+3. tune first-step swing clearance only after idle standing is repeatable for 10+ seconds
+4. keep capsule controller as the production fallback until active-ragdoll scenarios pass consistently
+5. continue Jolt research separately; engine swap is not the standing fix path
+
 ## Definition of done for the first publishable active-ragdoll release
 
 The first release should not promise everything. It should promise:

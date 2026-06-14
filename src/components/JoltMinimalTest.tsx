@@ -17,7 +17,7 @@ import {
   useJolt,
   LAYER_NON_MOVING,
   LAYER_MOVING,
-} from "../../lib/jolt-integration/JoltPhysics";
+} from "../lib/jolt-integration/JoltPhysics";
 
 // ---------------------------------------------------------------------------
 // Falling box

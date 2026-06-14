@@ -50,7 +50,6 @@ import {
   MIXAMO_CONTROL_ENABLED,
   NEUTRAL_ARTICULATED_POSE,
   STAND_ASSIST_MAX_SPEED,
-  STAND_BOOTSTRAP_SETTLE_DURATION,
   STAND_FOOT_FORWARD_OFFSET,
   STAND_FOOT_LATERAL_OFFSET,
   STAND_PELVIS_HEIGHT,
@@ -93,6 +92,14 @@ import {
   advanceRecoveryState,
   deriveRecoverySignals,
 } from "./active-ragdoll/recovery";
+import {
+  advanceBootstrapTimer,
+  createInitialBootstrapState,
+  deriveBootstrapSupportState,
+  deriveSpawnSettleActive,
+  scaleBootstrapMotorGain,
+  shouldSuppressLocomotionDuringBootstrap,
+} from "./active-ragdoll/bootstrap";
 import {
   advanceStandingFootPlant,
   deriveStandingPoseTargets,
@@ -219,7 +226,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
   const jointCalibrationReadyRef = useRef(false);
   const debugLogCooldownRef = useRef(0);
   const smoothedGaitEffortRef = useRef(0);
-  const standBootstrapTimerRef = useRef(0);
+  const bootstrapStateRef = useRef(createInitialBootstrapState());
 
   const commitGrounded = (nextGrounded: boolean) => {
     if (groundedRef.current === nextGrounded) {
@@ -443,10 +450,13 @@ export function CharacterCtrlrActiveRagdollPlayer({
         !hasMovementInput
         || pureTurnRequested
       );
-    const standBootstrapActive =
-      standingAssistRequested
-      && standBootstrapTimerRef.current < STAND_BOOTSTRAP_SETTLE_DURATION;
-    const spawnSettleActive = standBootstrapActive || !jointCalibrationReadyRef.current;
+    const spawnSettleActive = deriveSpawnSettleActive({
+      jointCalibrationReady: jointCalibrationReadyRef.current,
+      standingAssistRequested,
+      bootstrapState: bootstrapStateRef.current,
+    });
+    const suppressLocomotionDuringBootstrap =
+      shouldSuppressLocomotionDuringBootstrap(spawnSettleActive);
     const turnInPlaceRequested =
       pureTurnRequested
       && grounded
@@ -455,6 +465,7 @@ export function CharacterCtrlrActiveRagdollPlayer({
     const locomotionCommandActive =
       hasMovementInput
       && !spawnSettleActive
+      && !suppressLocomotionDuringBootstrap
       && !turnInPlaceRequested;
     const activeLocomotionMode = deriveActiveLocomotionMode(
       locomotionCommandActive,
@@ -532,7 +543,13 @@ export function CharacterCtrlrActiveRagdollPlayer({
       contactState.jumpContactClearPending = false;
     }
 
-    const supportStateAfterJump = jumpTriggered ? "none" : contactState.supportState;
+    const supportStateAfterJump = jumpTriggered
+      ? "none"
+      : deriveBootstrapSupportState({
+          spawnSettleActive,
+          contactSupportState: contactState.supportState,
+          probedSupportState,
+        });
     const movementHeading = Math.atan2(movement.x, movement.z);
     const targetFacing = deriveStandingTargetFacing({
       playerFacing,
@@ -1143,13 +1160,12 @@ export function CharacterCtrlrActiveRagdollPlayer({
       captureForwardError,
     });
 
-    if (standingAssistRequested) {
-      standBootstrapTimerRef.current = recoverySignals.standBootstrapStable
-        ? standBootstrapTimerRef.current + delta
-        : 0;
-    } else {
-      standBootstrapTimerRef.current = 0;
-    }
+    advanceBootstrapTimer({
+      state: bootstrapStateRef.current,
+      delta,
+      standingAssistRequested,
+      standBootstrapStable: recoverySignals.standBootstrapStable,
+    });
 
     const recoveryProgress = advanceRecoveryState({
       recoveryState,
@@ -1483,14 +1499,32 @@ export function CharacterCtrlrActiveRagdollPlayer({
     driveJointToPosition(
       jointRefs.hipLeft.current,
       hipLeftTarget,
-      groundedAfterControl ? (standingSupport ? 34 : 20) : 11,
-      groundedAfterControl ? (standingSupport ? 7.8 : 4.4) : 2.8,
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 34 : 20) : 11,
+        spawnSettleActive,
+        groundedAfterControl,
+      ),
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 7.8 : 4.4) : 2.8,
+        spawnSettleActive,
+        groundedAfterControl,
+        1.2,
+      ),
     );
     driveJointToPosition(
       jointRefs.hipRight.current,
       hipRightTarget,
-      groundedAfterControl ? (standingSupport ? 34 : 20) : 11,
-      groundedAfterControl ? (standingSupport ? 7.8 : 4.4) : 2.8,
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 34 : 20) : 11,
+        spawnSettleActive,
+        groundedAfterControl,
+      ),
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 7.8 : 4.4) : 2.8,
+        spawnSettleActive,
+        groundedAfterControl,
+        1.2,
+      ),
     );
     driveJointToPosition(
       jointRefs.shoulderLeft.current,
@@ -1507,26 +1541,62 @@ export function CharacterCtrlrActiveRagdollPlayer({
     driveJointToPosition(
       jointRefs.kneeLeft.current,
       kneeLeftTarget,
-      groundedAfterControl ? (standingSupport ? 44 : 22) : 14,
-      groundedAfterControl ? (standingSupport ? 9.5 : 4.2) : 3,
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 44 : 22) : 14,
+        spawnSettleActive,
+        groundedAfterControl,
+      ),
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 9.5 : 4.2) : 3,
+        spawnSettleActive,
+        groundedAfterControl,
+        1.2,
+      ),
     );
     driveJointToPosition(
       jointRefs.kneeRight.current,
       kneeRightTarget,
-      groundedAfterControl ? (standingSupport ? 44 : 22) : 14,
-      groundedAfterControl ? (standingSupport ? 9.5 : 4.2) : 3,
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 44 : 22) : 14,
+        spawnSettleActive,
+        groundedAfterControl,
+      ),
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 9.5 : 4.2) : 3,
+        spawnSettleActive,
+        groundedAfterControl,
+        1.2,
+      ),
     );
     driveJointToPosition(
       jointRefs.ankleLeft.current,
       ankleLeftTarget,
-      groundedAfterControl ? (standingSupport ? 28 : 15) : 9,
-      groundedAfterControl ? (standingSupport ? 6.8 : 3.1) : 2.3,
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 28 : 15) : 9,
+        spawnSettleActive,
+        groundedAfterControl,
+      ),
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 6.8 : 3.1) : 2.3,
+        spawnSettleActive,
+        groundedAfterControl,
+        1.2,
+      ),
     );
     driveJointToPosition(
       jointRefs.ankleRight.current,
       ankleRightTarget,
-      groundedAfterControl ? (standingSupport ? 28 : 15) : 9,
-      groundedAfterControl ? (standingSupport ? 6.8 : 3.1) : 2.3,
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 28 : 15) : 9,
+        spawnSettleActive,
+        groundedAfterControl,
+      ),
+      scaleBootstrapMotorGain(
+        groundedAfterControl ? (standingSupport ? 6.8 : 3.1) : 2.3,
+        spawnSettleActive,
+        groundedAfterControl,
+        1.2,
+      ),
     );
     driveJointToPosition(
       jointRefs.elbowLeft.current,
